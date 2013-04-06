@@ -1,14 +1,18 @@
-package yocto.indexing.parsing;
+package yocto.indexing.parsing.wikipedia;
 
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.zip.GZIPInputStream;
-import java.util.zip.ZipInputStream;
+import yocto.indexing.parsing.AbstractXMLDumpParser;
 
-import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
-
-public abstract class AbstractWikipediaXMLDumpParser implements WikipediaXMLDumpParser {
+/**
+ * An abstract extension of the {@code AbstractXMLDumpParser} defining
+ * Wikipedia XML dump file specifics that can be shared by concrete
+ * implementations (i.e. DOM-based or stream-based).
+ *
+ * @see {@link AbstractXMLDumpParser}
+ *
+ * @author billy
+ */
+public abstract class AbstractWikipediaXMLDumpParser
+        extends AbstractXMLDumpParser {
 
     // Basic XML tags for Wikipedia's XML dumps. For more info check
     // http://www.mediawiki.org/xml/export-0.8.xsd
@@ -81,46 +85,14 @@ public abstract class AbstractWikipediaXMLDumpParser implements WikipediaXMLDump
     public static final String TAG_PAGE_REVISION_FORMAT = "format";
 
 
-    /** The filename of the Wikipedia XML dump file. */
-    private final String pathname;
-
-
     /**
      * Constructor.
      *
-     * @param filename
+     * @param pathname
      *     The pathname of the Wikipedia XML dump file.
      */
     public AbstractWikipediaXMLDumpParser(String pathname) {
-        this.pathname = pathname;
+        super(pathname);
     }
 
-
-    /**
-     * Gets the input stream from the path name of the Wikipedia XML dump file.
-     *
-     * It also checks the file name suffix and decorates the stream accordingly
-     * before returning it to the caller. Types of archive currently supported
-     * are GZip, BZ2 and ZIP.
-     *
-     * @return
-     *     The input stream from the Wikipedia XML dump file.
-     *
-     * @throws IOException
-     */
-    protected InputStream getInputStream() throws IOException {
-        InputStream is = new FileInputStream(pathname);
-
-        if (pathname.endsWith(".gz")) {
-            is = new GZIPInputStream(is);
-        }
-        else if (pathname.endsWith(".bz2")) {
-            is = new BZip2CompressorInputStream(is);
-        }
-        else if (pathname.endsWith(".zip")) {
-            is = new ZipInputStream(is);
-        }
-
-        return is;
-    }
 }

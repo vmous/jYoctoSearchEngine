@@ -1,4 +1,4 @@
-package yocto.indexing.parsing;
+package yocto.indexing.parsing.wikipedia;
 
 import java.io.IOException;
 
@@ -8,6 +8,13 @@ import javax.xml.parsers.SAXParserFactory;
 
 import org.xml.sax.SAXException;
 
+/**
+ * A concrete implementation of a Wikipedia XML dump parser based on SAX.
+ *
+ * @see {@link AbstractWikipediaXMLDumpParser}
+ *
+ * @author billy
+ */
 public class SAXWikipediaXMLDumpParser extends AbstractWikipediaXMLDumpParser {
 
     /**
@@ -22,7 +29,7 @@ public class SAXWikipediaXMLDumpParser extends AbstractWikipediaXMLDumpParser {
 
 
     /* (non-Javadoc)
-     * @see yocto.indexing.parsing.WikipediaXMLDumpParser#parse()
+     * @see yocto.indexing.parsing.XMLDumpParser#parse()
      */
     @Override
     public void parse() {
@@ -42,8 +49,6 @@ public class SAXWikipediaXMLDumpParser extends AbstractWikipediaXMLDumpParser {
         catch (IOException ioe) {
             ioe.printStackTrace();
         }
-
-//        return handler.getWebPages();
     }
 
 }

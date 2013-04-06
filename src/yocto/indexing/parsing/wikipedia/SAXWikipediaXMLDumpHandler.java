@@ -1,20 +1,36 @@
-package yocto.indexing.parsing;
+package yocto.indexing.parsing.wikipedia;
 
-import static yocto.indexing.parsing.AbstractWikipediaXMLDumpParser.*;
+import static yocto.indexing.parsing.wikipedia.AbstractWikipediaXMLDumpParser.*;
 
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
 
+/**
+ * The hanlder that handles the parsing of a Wikipedia XML dump file.
+ *
+ * @see {@link SAXWikipediaXMLDumpParser}
+ *
+ * @author billy
+ */
 public class SAXWikipediaXMLDumpHandler extends DefaultHandler {
 
+    /** The currently manipulated Wikipedia article page. */
     private WikiPage page;
 
+    /** The currently manipulated element tag. */
     private String tag;
 
+    /** A builder for a page title. */
     private StringBuilder pageTitle;
+
+    /** A builder for a page id. */
     private StringBuilder pageId;
+
+    /** A builder for a page revision contributor username. */
     private StringBuilder pageRevisionContributorUsername;
+
+    /** A builder for a page revision text. */
     private StringBuilder pageRevisionText;
 
 
@@ -94,7 +110,7 @@ public class SAXWikipediaXMLDumpHandler extends DefaultHandler {
                     pageRevisionContributorUsername.length());
             pageRevisionText.delete(0, pageRevisionText.length());
 
-//            System.out.println(page.peek() + "\n\n");
+            System.out.println(page.peek() + "\n\n");
         }
     }
 
