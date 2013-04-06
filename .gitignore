@@ -4,8 +4,7 @@ target/
 .settings/
 .classpath
 .project
-soundclouder.xml
-
+enwiki-latest-pages-articles.xml*
 
 # OS noise
 .directory
