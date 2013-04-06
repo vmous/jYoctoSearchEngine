@@ -1,5 +1,7 @@
 package yocto.indexing.parsing;
 
+import java.lang.reflect.Field;
+
 public class WikiPage {
 
     private final String title;
@@ -12,12 +14,12 @@ public class WikiPage {
 
     public WikiPage(String title, String id,
             String revisionContributorUsername, String revisionText) {
-//        System.out.print("Creating object for Wiki page \"" + title + "\"... ");
-        this.title = title;
-        this.id = id;
-        this.revisionContributorUsername = revisionContributorUsername;
-        this.revisionText = revisionText;
-//        System.out.println("[DONE]");
+        this.title = title.trim();
+        this.id = id.trim();
+        this.revisionContributorUsername = revisionContributorUsername.trim();
+        this.revisionText = revisionText.trim();
+
+//        System.out.println("Object for Wiki page \"" + this.title + "\" created!");
     }
 
     /**
@@ -46,6 +48,36 @@ public class WikiPage {
      */
     public String getRevisionText() {
         return revisionText;
+    }
+
+
+    public String peek() {
+        StringBuilder sb = new StringBuilder();
+        final String NEW_LINE = System.getProperty("line.separator");
+
+        sb.append( this.getClass().getName() );
+        sb.append( " Object {" );
+        sb.append(NEW_LINE);
+
+        // Get a reflection of class' fields.
+        Field[] fields = this.getClass().getDeclaredFields();
+
+        //print field names paired with their values
+        for ( Field field : fields  ) {
+          sb.append("  ");
+          try {
+              sb.append( field.getName() );
+              sb.append(": ");
+              sb.append( field.get(this) );
+          }
+          catch ( IllegalAccessException ex ) {
+            System.out.println(ex);
+          }
+          sb.append(NEW_LINE);
+        }
+        sb.append("}");
+
+        return sb.toString();
     }
 
 }
