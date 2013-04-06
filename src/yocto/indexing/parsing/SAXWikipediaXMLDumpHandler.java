@@ -30,7 +30,9 @@ public class SAXWikipediaXMLDumpHandler extends DefaultHandler {
             pageTitle.append(ch, start, length);
         }
         else if (tag.equalsIgnoreCase(TAG_PAGE_ID)) {
-            pageId.append(ch, start, length);
+            // Append only the page id and ignore page revision id and
+            // page revision contributor id.
+            if (pageId.length() == 0) pageId.append(ch, start, length);
         }
         else if (tag.equalsIgnoreCase(TAG_PAGE_REVISION_CONTRIBUTOR_USERNAME)) {
             pageRevisionContributorUsername.append(ch, start, length);
@@ -91,6 +93,8 @@ public class SAXWikipediaXMLDumpHandler extends DefaultHandler {
             pageRevisionContributorUsername.delete(0,
                     pageRevisionContributorUsername.length());
             pageRevisionText.delete(0, pageRevisionText.length());
+
+//            System.out.println(page.peek() + "\n\n");
         }
     }
 
