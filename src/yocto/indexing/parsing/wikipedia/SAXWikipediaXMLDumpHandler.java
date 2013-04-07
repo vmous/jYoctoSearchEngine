@@ -2,6 +2,9 @@ package yocto.indexing.parsing.wikipedia;
 
 import static yocto.indexing.parsing.wikipedia.AbstractWikipediaXMLDumpParser.*;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
@@ -14,6 +17,9 @@ import org.xml.sax.helpers.DefaultHandler;
  * @author billy
  */
 public class SAXWikipediaXMLDumpHandler extends DefaultHandler {
+
+    // TODO TESTING ONLY
+    private List<WikiPage> pages;
 
     /** The currently manipulated Wikipedia article page. */
     private WikiPage page;
@@ -48,7 +54,9 @@ public class SAXWikipediaXMLDumpHandler extends DefaultHandler {
         else if (tag.equalsIgnoreCase(TAG_PAGE_ID)) {
             // Append only the page id and ignore page revision id and
             // page revision contributor id.
-            if (pageId.length() == 0) pageId.append(ch, start, length);
+            if (pageId.length() == 0) {
+                pageId.append(ch, start, length);
+            }
         }
         else if (tag.equalsIgnoreCase(TAG_PAGE_REVISION_CONTRIBUTOR_USERNAME)) {
             pageRevisionContributorUsername.append(ch, start, length);
@@ -65,6 +73,9 @@ public class SAXWikipediaXMLDumpHandler extends DefaultHandler {
     @Override
     public void startDocument() throws SAXException {
         super.startDocument();
+
+        // TODO TESTING ONLY
+        pages = new ArrayList<WikiPage>();
 
         // Created once, used many times...
         // Do not forget to delete( ) at the end of each page element!
@@ -99,9 +110,12 @@ public class SAXWikipediaXMLDumpHandler extends DefaultHandler {
             // Flush the parsed content to the wiki page object...
             page = new WikiPage(
                     pageTitle.toString(),
-                    pageId.toString(),
+                    Long.parseLong(pageId.toString()),
                     pageRevisionContributorUsername.toString(),
                     pageRevisionText.toString());
+
+            // TODO TESTING ONLY
+            pages.add(page);
 
             // ...and clear the string builders for reuse.
             pageTitle.delete(0, pageTitle.length());
@@ -110,7 +124,9 @@ public class SAXWikipediaXMLDumpHandler extends DefaultHandler {
                     pageRevisionContributorUsername.length());
             pageRevisionText.delete(0, pageRevisionText.length());
 
-            System.out.println(page.peek() + "\n\n");
+
+
+//            System.out.println(page.peek() + "\n\n");
         }
     }
 

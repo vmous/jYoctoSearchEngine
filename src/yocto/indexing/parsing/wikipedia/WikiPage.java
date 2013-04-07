@@ -1,6 +1,7 @@
 package yocto.indexing.parsing.wikipedia;
 
 import java.lang.reflect.Field;
+import java.util.HashSet;
 
 /**
  * An abstraction of a Wikipedia article page.
@@ -15,13 +16,16 @@ public class WikiPage {
     private final String title;
 
     /** The Wikipedia article page id. */
-    private final String id;
+    private final long id;
 
     /** The Wikipedia article page revision contributor username. */
     private final String revisionContributorUsername;
 
     /** The Wikipedia article page revision text. */
     private final String revisionText;
+
+    /** A bag of words significant for the Wikipedia article page. */
+    private final HashSet<String> bagOfWords;
 
 
     /**
@@ -36,12 +40,16 @@ public class WikiPage {
      * @param revisionText
      *     The Wikipedia article page revision text.
      */
-    public WikiPage(String title, String id,
+    public WikiPage(String title, long id,
             String revisionContributorUsername, String revisionText) {
-        this.title = title.trim();
-        this.id = id.trim();
-        this.revisionContributorUsername = revisionContributorUsername.trim();
-        this.revisionText = revisionText.trim();
+        this.title = title;
+        this.id = id;
+        this.revisionContributorUsername = revisionContributorUsername;
+        this.revisionText = revisionText;
+
+        this.bagOfWords = WikiPageAnalyzer.tokenizePageRevisionText(
+                WikiPageAnalyzer.normalizePlainPageRevisionText(this.revisionText),
+                WikiPageAnalyzer.getInstanceStopwords());
 
 //        System.out.println("Object for Wiki page \"" + this.title + "\" created!");
     }
@@ -67,7 +75,7 @@ public class WikiPage {
      * @return
      *     The page id.
      */
-    public String getId() {
+    public long getId() {
         return id;
     }
 
@@ -91,6 +99,17 @@ public class WikiPage {
      */
     public String getRevisionText() {
         return revisionText;
+    }
+
+
+    /**
+     * Gets the page's bag of words.
+     *
+     * @return
+     *     The page's bag of words.
+     */
+    public HashSet<String> getBagOfWords() {
+        return bagOfWords;
     }
 
 
