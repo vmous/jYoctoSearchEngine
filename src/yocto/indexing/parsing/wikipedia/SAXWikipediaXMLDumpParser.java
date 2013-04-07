@@ -1,6 +1,7 @@
 package yocto.indexing.parsing.wikipedia;
 
 import java.io.IOException;
+import java.util.List;
 
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParser;
@@ -32,7 +33,7 @@ public class SAXWikipediaXMLDumpParser extends AbstractWikipediaXMLDumpParser {
      * @see yocto.indexing.parsing.XMLDumpParser#parse()
      */
     @Override
-    public void parse() {
+    public List<WikiPage> parse() {
         SAXParserFactory factory = SAXParserFactory.newInstance();
         SAXWikipediaXMLDumpHandler handler = null;
         try {
@@ -49,6 +50,8 @@ public class SAXWikipediaXMLDumpParser extends AbstractWikipediaXMLDumpParser {
         catch (IOException ioe) {
             ioe.printStackTrace();
         }
+
+        return handler.getPages();
     }
 
 }

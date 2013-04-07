@@ -40,6 +40,19 @@ public class SAXWikipediaXMLDumpHandler extends DefaultHandler {
     private StringBuilder pageRevisionText;
 
 
+    /**
+     * TODO TESTING ONLY
+     *
+     * Gets the parsed Wikipedia pages.
+     *
+     * @return
+     *     A list of the parsed Wikipedia pages.
+     */
+    public List<WikiPage> getPages() {
+        return pages;
+    }
+
+
     /* (non-Javadoc)
      * @see org.xml.sax.helpers.DefaultHandler#characters(char[], int, int)
      */

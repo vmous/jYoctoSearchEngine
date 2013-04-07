@@ -24,9 +24,6 @@ public class WikiPage {
     /** The Wikipedia article page revision text. */
     private final String revisionText;
 
-    /** A bag of words significant for the Wikipedia article page. */
-    private final HashSet<String> bagOfWords;
-
 
     /**
      * Constructor.
@@ -46,10 +43,6 @@ public class WikiPage {
         this.id = id;
         this.revisionContributorUsername = revisionContributorUsername;
         this.revisionText = revisionText;
-
-        this.bagOfWords = WikiPageAnalyzer.tokenizePageRevisionText(
-                WikiPageAnalyzer.normalizePlainPageRevisionText(this.revisionText),
-                WikiPageAnalyzer.getInstanceStopwords());
 
 //        System.out.println("Object for Wiki page \"" + this.title + "\" created!");
     }
@@ -100,18 +93,6 @@ public class WikiPage {
     public String getRevisionText() {
         return revisionText;
     }
-
-
-    /**
-     * Gets the page's bag of words.
-     *
-     * @return
-     *     The page's bag of words.
-     */
-    public HashSet<String> getBagOfWords() {
-        return bagOfWords;
-    }
-
 
     /**
      * Peek inside the {@code WikiPage} object to see its contents in a
