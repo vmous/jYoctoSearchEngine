@@ -8,7 +8,17 @@
   
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <commons-compress.version>1.5</commons-compress.version>
   </properties>
+  
+  <dependencies>
+    <!-- BZip2 compressed file support -->
+    <dependency>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-compress</artifactId>
+        <version>${commons-compress.version}</version>
+    </dependency>
+  </dependencies>
   
   <build>
     <sourceDirectory>src</sourceDirectory>
