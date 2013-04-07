@@ -137,8 +137,6 @@ public class SAXWikipediaXMLDumpHandler extends DefaultHandler {
                     pageRevisionContributorUsername.length());
             pageRevisionText.delete(0, pageRevisionText.length());
 
-
-
 //            System.out.println(page.peek() + "\n\n");
         }
     }

@@ -1,7 +1,6 @@
 package yocto.indexing.parsing.wikipedia;
 
-import java.lang.reflect.Field;
-import java.util.HashSet;
+import yocto.indexing.Document;
 
 /**
  * An abstraction of a Wikipedia article page.
@@ -10,13 +9,10 @@ import java.util.HashSet;
  *
  * @author billy
  */
-public class WikiPage {
+public class WikiPage extends Document {
 
     /** The Wikipedia article page title. */
     private final String title;
-
-    /** The Wikipedia article page id. */
-    private final long id;
 
     /** The Wikipedia article page revision contributor username. */
     private final String revisionContributorUsername;
@@ -39,12 +35,10 @@ public class WikiPage {
      */
     public WikiPage(String title, long id,
             String revisionContributorUsername, String revisionText) {
+        super(id);
         this.title = title;
-        this.id = id;
         this.revisionContributorUsername = revisionContributorUsername;
         this.revisionText = revisionText;
-
-//        System.out.println("Object for Wiki page \"" + this.title + "\" created!");
     }
 
 
@@ -59,17 +53,6 @@ public class WikiPage {
      */
     public String getTitle() {
         return title;
-    }
-
-
-    /**
-     * Gets the page id.
-     *
-     * @return
-     *     The page id.
-     */
-    public long getId() {
-        return id;
     }
 
 
@@ -92,42 +75,6 @@ public class WikiPage {
      */
     public String getRevisionText() {
         return revisionText;
-    }
-
-    /**
-     * Peek inside the {@code WikiPage} object to see its contents in a
-     * human readable format.
-     *
-     * @return
-     *     A {@code String} representation of the {@code WikiPage}.
-     */
-    public String peek() {
-        StringBuilder sb = new StringBuilder();
-        final String NEW_LINE = System.getProperty("line.separator");
-
-        sb.append( this.getClass().getName() );
-        sb.append( " Object {" );
-        sb.append(NEW_LINE);
-
-        // Get a reflection of class' fields.
-        Field[] fields = this.getClass().getDeclaredFields();
-
-        //print field names paired with their values
-        for ( Field field : fields  ) {
-          sb.append("  ");
-          try {
-              sb.append( field.getName() );
-              sb.append(": ");
-              sb.append( field.get(this) );
-          }
-          catch ( IllegalAccessException ex ) {
-            System.out.println(ex);
-          }
-          sb.append(NEW_LINE);
-        }
-        sb.append("}");
-
-        return sb.toString();
     }
 
 }
