@@ -2,12 +2,11 @@ package yocto.indexing.parsing.wikipedia;
 
 import static yocto.indexing.parsing.wikipedia.AbstractWikipediaXMLDumpParser.*;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
+
+import yocto.indexing.Indexer;
 
 /**
  * The hanlder that handles the parsing of a Wikipedia XML dump file.
@@ -18,8 +17,7 @@ import org.xml.sax.helpers.DefaultHandler;
  */
 public class SAXWikipediaXMLDumpHandler extends DefaultHandler {
 
-    // TODO TESTING ONLY
-    private List<WikiPage> pages;
+    private Indexer indexer;
 
     /** The currently manipulated Wikipedia article page. */
     private WikiPage page;
@@ -38,19 +36,6 @@ public class SAXWikipediaXMLDumpHandler extends DefaultHandler {
 
     /** A builder for a page revision text. */
     private StringBuilder pageRevisionText;
-
-
-    /**
-     * TODO TESTING ONLY
-     *
-     * Gets the parsed Wikipedia pages.
-     *
-     * @return
-     *     A list of the parsed Wikipedia pages.
-     */
-    public List<WikiPage> getPages() {
-        return pages;
-    }
 
 
     /* (non-Javadoc)
@@ -87,8 +72,7 @@ public class SAXWikipediaXMLDumpHandler extends DefaultHandler {
     public void startDocument() throws SAXException {
         super.startDocument();
 
-        // TODO TESTING ONLY
-        pages = new ArrayList<WikiPage>();
+        indexer = new Indexer();
 
         // Created once, used many times...
         // Do not forget to delete( ) at the end of each page element!
@@ -96,6 +80,18 @@ public class SAXWikipediaXMLDumpHandler extends DefaultHandler {
         pageId = new StringBuilder();
         pageRevisionContributorUsername = new StringBuilder();
         pageRevisionText = new StringBuilder();
+    }
+
+
+    /* (non-Javadoc)
+     * @see org.xml.sax.helpers.DefaultHandler#endDocument()
+     */
+    @Override
+    public void endDocument() throws SAXException {
+        super.endDocument();
+
+        // TODO TESTING ONLY
+        indexer.forceCommit();
     }
 
 
@@ -127,8 +123,9 @@ public class SAXWikipediaXMLDumpHandler extends DefaultHandler {
                     pageRevisionContributorUsername.toString(),
                     pageRevisionText.toString());
 
-            // TODO TESTING ONLY
-            pages.add(page);
+            indexer.addDocument(page);
+//            System.out.println("JVM memory (free / total): " + Runtime.getRuntime().freeMemory() + " / "
+//                    + Runtime.getRuntime().totalMemory());
 
             // ...and clear the string builders for reuse.
             pageTitle.delete(0, pageTitle.length());

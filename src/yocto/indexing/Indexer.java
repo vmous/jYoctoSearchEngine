@@ -1,15 +1,13 @@
 package yocto.indexing;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
-import java.util.concurrent.TimeUnit;
 
-import yocto.indexing.parsing.wikipedia.SAXWikipediaXMLDumpParser;
-import yocto.indexing.parsing.wikipedia.WikiPage;
 import yocto.indexing.parsing.wikipedia.WikiPageAnalyzer;
 
 /**
@@ -20,49 +18,110 @@ import yocto.indexing.parsing.wikipedia.WikiPageAnalyzer;
 public class Indexer {
 
     /**
-     * The main function that drives the execution.
+     * The in-memory index.
      *
-     * @param args
-     *     The command-line arguments.
+     * It is the data structure that will hold an in-memory instance of the
+     * inverted index for the sorting/grouping phase of the indexing process.
+     *
+     * The terms should be kept in lexicographic order so we use a tree that
+     * that implements a dictionary-based interface.
+     *
+     * It is also a good idea to keep the postings lists in increasing document
+     * id order. In the special case that we process a stream of documents that
+     * are coming in increasing id order a simple linked-list structure would
+     * suffice. For the general case, here, we use a tree-based data structure
+     * holding the postings (which we have made comparable on the document id
+     * field).
+     *
+     * TODO If steps that access it are to be threaded, I need to make sure the
+     *      that it is thread-safe ({@code TreeMap<K, V> for example is not
+     *      synchronized by default). Better some concurrent collection.
      */
-    public static void main(String args[]) {
-        final String WIKIPEDIA_DUMP_XML = args[0];
-        long startTime;
-        long elapsedTime;
+    private TreeMap<String, TreeSet<Posting>> index;
 
-        System.out.println("\nExtracting documents from Wikipedia XML dump file: " + WIKIPEDIA_DUMP_XML + "\n");
-        SAXWikipediaXMLDumpParser parser = new SAXWikipediaXMLDumpParser(WIKIPEDIA_DUMP_XML);
+    /**
+     * The queue of the documents to be indexed.
+     */
+    private final List<Document> queue;
 
-        startTime = System.nanoTime();
-        List<WikiPage> docs = parser.parse();
-        elapsedTime = System.nanoTime() - startTime;
-        System.out.println("Total parsing time: " +
-                TimeUnit.SECONDS.convert(elapsedTime, TimeUnit.NANOSECONDS) +
-                " seconds");
 
-        System.out.println("\nIndexing Wikipedia documents\n");
-        startTime = System.nanoTime();
-        WikiPage doc;
+    /**
+     * Constructor.
+     */
+    public Indexer() {
+        queue = new ArrayList<>();
+    }
+
+
+    /**
+     * Adds the document to the indexer.
+     *
+     * This does not mean it is indexed or flushed to disk yet. The indexer
+     * will decide according to a policy when the indexing procedure per se
+     * will take place.
+     *
+     * @param doc
+     *     The document to be indexed.
+     */
+    public void addDocument(Document doc) {
+        queue.add(doc);
+    }
+
+
+    /**
+     * Force the indexing procedure to index and flush to disk the currently
+     * queued documents.
+     */
+    public void forceCommit() {
+        index();
+    }
+
+
+    /**
+     * Prints {@code <term, postings-list>} tuples from the given index.
+     *
+     * @param index
+     *     The index to print.
+     */
+    public static void printIndex(TreeMap<String, TreeSet<Posting>> index) {
+        Set<String> terms = index.keySet();
+
+        for (String term : terms) {
+            System.out.print(term);
+            System.out.print(" ->");
+            TreeSet<Posting> postings = index.get(term);
+            for (Posting posting : postings) {
+                System.out.print(" " + posting.getDocId());
+            }
+            System.out.println();
+
+        }
+
+    }
+
+
+    /**
+     * The indexing process.
+     *
+     * TODO I have to leverage the composite design pattern for a plugable
+     *      analyzer object.
+     */
+    private void index() {
+
+        // Prepare a new in-memory index to process this indexing block
+        index = new TreeMap<String, TreeSet<Posting>>();
+
+        Document doc;
         HashSet<String> docTerms;
-        Iterator<WikiPage> iter = docs.iterator();
+        Iterator<Document> iter = queue.iterator();
 
-        // TODO The following is the data structure for that will hold
-        // an index by sorting and grouping. If I do the analysis concurrently
-        // then I have to make sure the data structures I use are synchronized.
-        // Better some concurrent collection.
-        // ATTENTION Sorting is guaranteed by using the TreeMap and grouping
-        //           by using a TreeSet of postings (we need postings sorted as
-        //           well that is why we are using a tree again HAVE TO IMPLEMENT
-        //           A COMPARATOR FOR THIS!!!!!
-        TreeMap<String, TreeSet<Posting>> invertedIndexSortedGrouped =
-                new TreeMap<String, TreeSet<Posting>>();
         while (iter.hasNext()) {
 
             doc = iter.next();
             iter.remove();
 
             docTerms = WikiPageAnalyzer.tokenizePageRevisionText(
-                    WikiPageAnalyzer.normalizePlainPageRevisionText(doc.getRevisionText()),
+                    WikiPageAnalyzer.normalizePlainPageRevisionText(doc.getContent()),
                     WikiPageAnalyzer.getInstanceStopwords());
 
             TreeSet<Posting> termPostings;
@@ -70,7 +129,7 @@ public class Indexer {
             // Iterate through all terms of the current document...
             for (String term : docTerms) {
                 //... try to get the postings for the term in the inverted index...
-                termPostings = invertedIndexSortedGrouped.get(term);
+                termPostings = index.get(term);
                 if (termPostings == null) {
                     // ...no term appears in the inverted index
 
@@ -81,7 +140,7 @@ public class Indexer {
                     addedPostings.add(new Posting(doc.getId()));
                     // and add a term/sorted-list-o-postings pair to the
                     // inverted index.
-                    invertedIndexSortedGrouped.put(term, addedPostings);
+                    index.put(term, addedPostings);
                 }
                 else {
                     // the term already appears in the inverted index so simply
@@ -89,29 +148,11 @@ public class Indexer {
                     termPostings.add(new Posting(doc.getId()));
                 }
 
+            } // -- foreach term in the document
 
-            }
+        } // -- while there are documents
 
-
-        }
-
-        elapsedTime = System.nanoTime() - startTime;
-        System.out.println("Total parsing time: " +
-                TimeUnit.SECONDS.convert(elapsedTime, TimeUnit.NANOSECONDS) +
-                " seconds");
-
-        Set<String> terms = invertedIndexSortedGrouped.keySet();
-
-        for (String term : terms) {
-            System.out.print(term);
-            System.out.print(" ->");
-            TreeSet<Posting> postings = invertedIndexSortedGrouped.get(term);
-            for (Posting posting : postings) {
-                System.out.print(" " + posting.getDocId());
-            }
-            System.out.println();
-
-        }
+//        printIndex(invertedIndexSortedGrouped);
     }
 
 }

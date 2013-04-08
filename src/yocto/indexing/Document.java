@@ -12,6 +12,8 @@ public abstract class Document {
     /** The document id. */
     private final long id;
 
+    /** The document's indexable content. */
+    private final String content;
 
     /**
      * Constructor.
@@ -19,8 +21,9 @@ public abstract class Document {
      * @param id
      *     The document id;
      */
-    public Document(long id) {
+    public Document(long id, String content) {
         this.id = id;
+        this.content = content;
     }
 
 
@@ -32,6 +35,17 @@ public abstract class Document {
      */
     public long getId() {
         return id;
+    }
+
+
+    /**
+     * Gets the document's content.
+     *
+     * @return
+     *     The document's content.
+     */
+    public String getContent() {
+        return content;
     }
 
 

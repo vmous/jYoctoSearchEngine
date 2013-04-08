@@ -17,9 +17,6 @@ public class WikiPage extends Document {
     /** The Wikipedia article page revision contributor username. */
     private final String revisionContributorUsername;
 
-    /** The Wikipedia article page revision text. */
-    private final String revisionText;
-
 
     /**
      * Constructor.
@@ -35,10 +32,9 @@ public class WikiPage extends Document {
      */
     public WikiPage(String title, long id,
             String revisionContributorUsername, String revisionText) {
-        super(id);
+        super(id, revisionText);
         this.title = title;
         this.revisionContributorUsername = revisionContributorUsername;
-        this.revisionText = revisionText;
     }
 
 
@@ -64,17 +60,6 @@ public class WikiPage extends Document {
      */
     public String getRevisionContributorUsername() {
         return revisionContributorUsername;
-    }
-
-
-    /**
-     * Gets the page revision text.
-     *
-     * @return
-     *     The page revision text.
-     */
-    public String getRevisionText() {
-        return revisionText;
     }
 
 }

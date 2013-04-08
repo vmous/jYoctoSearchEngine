@@ -1,9 +1,5 @@
 package yocto.indexing.parsing;
 
-import java.util.List;
-
-import yocto.indexing.Document;
-
 /**
  * Interface of a generic XML parser for large semi-structured datasets.
  *
@@ -17,6 +13,6 @@ public interface XMLDumpParser {
      * @return
      *     A list of indexable documents.
      */
-    public abstract List<? extends Document> parse();
+    public abstract void parse();
 
 }
