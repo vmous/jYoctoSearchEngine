@@ -48,7 +48,7 @@ public class SearchTester {
         System.out.print("Initializing... ");
         Searcher s;
         try {
-            s = new Searcher("./_seg.0", "./_off_seg.0", "./stor", "off_stor");
+            s = new Searcher("./_seg.0", "./_off_seg.0", "./stor", "./off_stor");
             System.out.println("Done");
             System.out.println("");
 

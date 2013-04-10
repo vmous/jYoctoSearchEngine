@@ -191,7 +191,7 @@ public class Indexer {
 
         } // -- while there are documents
 
-//        printIndex(index);
+        printIndex(index);
 //        printStore(store);
 
         // Persist to disk
@@ -216,12 +216,12 @@ public class Indexer {
         Set<String> terms = index.keySet();
 
         for (String term : terms) {
+            System.out.println("");
             System.out.print(term + " => ");
             TreeSet<Posting> postings = index.get(term);
             for (Posting posting : postings) {
                 System.out.print(" " + posting.getDocId());
             }
-            System.out.println();
         }
 
     }

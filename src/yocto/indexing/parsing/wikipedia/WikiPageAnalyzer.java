@@ -115,14 +115,15 @@ public class WikiPageAnalyzer {
 
         for (String token : tokens) {
 //            System.out.println(token);
-
-            if (stopwords != null) {
-                if (!stopwords.contains(token)) {
+            if (!token.equals("")) {
+                if (stopwords != null) {
+                    if (!stopwords.contains(token)) {
+                        bagOfWords.add(token);
+                    }
+                }
+                else {
                     bagOfWords.add(token);
                 }
-            }
-            else {
-                bagOfWords.add(token);
             }
         }
 
@@ -146,25 +147,26 @@ public class WikiPageAnalyzer {
 
         // remove cites
         return rawPageRevisionText.toLowerCase()
-                    // Greater than.
-                    .replaceAll("&gt;", "")
-                    // Less than.
-                    .replaceAll("&lt;", "")
-                    // Non-braking space.
-                    .replaceAll("&nbsp", " ")
                     // Wikipedia murkup (e.g., bold)
                     .replaceAll("\\'+", "")
                     .replaceAll("\\{\\{.*?\\}\\}", "")
+                    .replaceAll("\\[.*?\\]", " ")
                     // URLs
                     .replaceAll("\\b(https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]", "")
                     // HTML Tags
+                    .replaceAll("&gt;", "")
+                    .replaceAll("&lt;", "")
+                    .replaceAll("&nbsp", " ")
                     .replaceAll("(\\<(\\/?[^\\>]+)\\>)", "")
                     .replaceAll("\\[\\[(.*?)\\]\\]", "$1")
                     .replaceAll("<ref>.*?</ref>", " ")
                     .replaceAll("</?.*?>", " ")
                     .replaceAll("\\[\\[.*?:.*?\\]\\]", " ")
+                    // plain numbers
+                    .replaceAll("\\d+", "")
+                    // other characters
+                    .replaceAll("_", " ")
 //                    .replaceAll("\\s(.*?)\\|(\\w+\\s)", " $2")
-                    .replaceAll("\\[.*?\\]", " ")
                     // Blank lines
                     .replaceAll("^\\s*$", "")
                     ;
