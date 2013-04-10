@@ -35,7 +35,6 @@ public class SearchTester {
             + "\nA tiny, yet functional, search engine."
             + "\nAuthor: " + strAppAuthor;
 
-
     /**
      * @param args
      */
@@ -49,7 +48,7 @@ public class SearchTester {
         System.out.print("Initializing... ");
         Searcher s;
         try {
-            s = new Searcher("./seg.i.0", "./seg.0");
+            s = new Searcher("./_seg.0", "./_off_seg.0", "./stor", "off_stor");
             System.out.println("Done");
             System.out.println("");
 

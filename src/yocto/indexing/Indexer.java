@@ -1,23 +1,18 @@
 package yocto.indexing;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.EOFException;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 
 import yocto.indexing.parsing.wikipedia.WikiPageAnalyzer;
+import yocto.storage.DiskManager;
 
 /**
  * An indexer for large semi-structured datasets.
@@ -48,23 +43,37 @@ public class Indexer {
      */
     private final TreeMap<String, TreeSet<Posting>> index;
 
+    /**
+     * The in-memory stored fields.
+     *
+     * A data structure that maps document ids with a stored string field (in the
+     * future maybe a collection of stored fields). The map is linked so that we
+     * can preserve the insertion  sequence since we are manipulating documents in
+     * an ascending order of document id number.
+     */
+    private final LinkedHashMap<Long, String> store;
+
+    /**
+     * Handles the persistence functions
+     */
+    private final DiskManager dm;
+
     /** The queue of the documents to be indexed. */
     private final List<Document> queue;
 
     /** The number of documents indexed **/
     private long docNum;
 
-    /** The number of segments **/
-    private int numSegments;
-
 
     /**
      * Constructor.
      */
-    public Indexer() {
-        index = new TreeMap<String, TreeSet<Posting>>();
-        docNum = 0;
-        queue = new ArrayList<>();
+    public Indexer(DiskManager dm) {
+        this.index = new TreeMap<String, TreeSet<Posting>>();
+        this.store = new LinkedHashMap<Long, String>();
+        this.dm = dm;
+        this.docNum = 0;
+        this.queue = new ArrayList<>();
     }
 
 
@@ -83,7 +92,7 @@ public class Indexer {
 
         // TODO Recheck this naive policy which is tightly coupled with
         //      the Wikipedia corpus.
-        if (queue.size() >= 45000) {
+        if (queue.size() >= 20000) {
             forceCommit();
         }
     }
@@ -103,6 +112,14 @@ public class Indexer {
      */
     protected void commit() {
         invertSPIMI();
+    }
+
+
+    private void flush(TreeMap<String, TreeSet<Posting>> index, LinkedHashMap<Long, String> store) {
+        dm.writeIndexSegment(index);
+        index.clear();
+        dm.appendStore(store);
+        store.clear();
     }
 
 
@@ -127,10 +144,17 @@ public class Indexer {
         HashSet<String> docTerms;
         Iterator<Document> iter = queue.iterator();
 
+        // Iterate through all available documents.
         while (iter.hasNext()) {
 
             doc = iter.next();
             iter.remove();
+
+            // -- Keep the stored fields.
+
+            store.put(doc.getId(), doc.getLabel().trim());
+
+            // -- Invert document.
 
             docTerms = WikiPageAnalyzer.tokenizePageRevisionText(
                     WikiPageAnalyzer.normalizePlainPageRevisionText(doc.getContent()),
@@ -168,9 +192,10 @@ public class Indexer {
         } // -- while there are documents
 
 //        printIndex(index);
+//        printStore(store);
 
-        writeSegmentToDisk();
-        mergeSegmentsOnDisk();
+        // Persist to disk
+        flush(index, store);
 
         long elapsedTime = System.nanoTime() - startTime;
         System.out.println("Done [tokens: " + numTokensProcessed
@@ -182,181 +207,16 @@ public class Indexer {
 
 
     /**
-     * Persisting index to disk.
-     */
-    private void writeSegmentToDisk() {
-        File fSeg = new File("./seg." + numSegments);
-        File fOff = new File("./seg.i." + numSegments);
-
-        FileOutputStream fosSeg = null;
-        DataOutputStream dosSeg = null;
-        FileOutputStream fosOff = null;
-        DataOutputStream dosOff = null;
-
-        try {
-            fosSeg = new FileOutputStream(fSeg);
-            dosSeg = new DataOutputStream(fosSeg);
-            fosOff = new FileOutputStream(fOff);
-            dosOff = new DataOutputStream(fosOff);
-
-            Set<String> terms = index.keySet();
-            TreeSet<Posting> termPostings;
-            Posting posting;
-            int offset;
-
-            for (String term : terms) {
-                // The data concerning the current term will be written
-                // to segment file starting from here.
-                offset = dosSeg.size();
-
-                // -- Offsets file
-
-                // Save the term literal and offset to the offsets
-                // file for enabling random access dictionary to the segment
-                // file
-                dosOff.writeUTF(term);
-                dosOff.writeInt(offset);
-//                System.out.println("Offset: " + offset);
-
-                // -- Segment file
-
-                termPostings = index.get(term);
-                Iterator<Posting> iter = termPostings.iterator();
-                // Write the size of the postings list, so that the
-                // reader can iteratively pick up the correct number of
-                // postings.
-                dosSeg.writeInt(termPostings.size());
-                // Iterate through the term's postings and...
-                while (iter.hasNext()) {
-                    posting = iter.next();
-                    // ...write the document id
-                    dosSeg.writeLong(posting.getDocId());
-//                    dosSegment.writeInt((new Long(posting.getDocId()).intValue()));
-                } // -- while postings
-            } // -- for all terms
-
-            numSegments++;
-
-            // clear the in-memory index since persisted on disk.
-            index.clear();
-        }
-        catch (FileNotFoundException fnfe) {
-            fnfe.printStackTrace();
-        }
-        catch (IOException ioe) {
-            ioe.printStackTrace();
-        }
-        finally {
-            try {
-                if (dosSeg != null) {
-                    dosSeg.flush();
-                    dosSeg.close();
-                }
-                if (fosSeg != null){
-                    fosSeg.flush();
-                    fosSeg.close();
-                }
-                if (dosOff != null){
-                    dosOff.flush();
-                    dosOff.close();
-                }
-                if (fosOff != null){
-                    fosOff.flush();
-                    fosOff.close();
-                }
-            }
-            catch (IOException ioe) {
-                ioe.printStackTrace();
-            }
-        }
-
-    }
-
-
-    /**
-     * Merge all segments to one humongous index
-     *
-     * TODO Currently only reads and prints (TESTING!).
-     */
-    private static void mergeSegmentsOnDisk() {
-
-        File fSeg = new File("./seg." + 0);
-        File fOff = new File("./seg.i." + 0);
-
-        FileInputStream fisSeg = null;
-        DataInputStream disSeg = null;
-        FileInputStream fisOff = null;
-        DataInputStream disOff = null;
-
-        TreeMap<String, TreeSet<Posting>> foo = null;
-        try {
-            fisSeg = new FileInputStream(fSeg);
-            disSeg = new DataInputStream(fisSeg);
-            fisOff = new FileInputStream(fOff);
-            disOff = new DataInputStream(fisOff);
-
-            foo = new TreeMap<String, TreeSet<Posting>>();
-
-            String term;
-            int offset;
-            while (true) {
-                term = disOff.readUTF();
-                offset = disOff.readInt();
-//                System.out.println("term: " + term
-//                        + " offset: " + offset);
-
-                // Retrieve the number of postings...
-                int postingsListSize = disSeg.readInt();
-                TreeSet<Posting> termPostings =
-                        new TreeSet<Posting>();
-                // ...and iterate through the appropriate number of bytes...
-                for (int i = 0; i < postingsListSize; i++) {
-                    // ...to fetch the needed data
-                    long docId = disSeg.readLong();
-                    // ...and add a new posting in the term's list
-                    termPostings.add(new Posting(docId));
-                }
-
-                // add the new term to an in-memory index for printing.
-                foo.put(term, termPostings);
-            } // -- while not EOF
-        }
-        catch (EOFException eofe) {
-            // Done reading segment or offset file.
-//            if (foo != null) printIndex(foo);
-        }
-        catch (FileNotFoundException fnfe) {
-            fnfe.printStackTrace();
-        }
-        catch (IOException ioe) {
-            ioe.printStackTrace();
-        }
-        finally {
-            try {
-                if (disSeg != null) disSeg.close();
-                if (fisSeg != null) fisSeg.close();
-                if (disOff != null) disOff.close();
-                if (fisOff != null) fisOff.close();
-            }
-            catch (IOException ioe) {
-                ioe.printStackTrace();
-            }
-        }
-    }
-
-
-    /**
-     * Prints {@code <term, postings-list>} tuples from the given index.
+     * Prints {@code <term, postings-list>} tuples from the given in-memory index.
      *
      * @param index
-     *     The index to print.
+     *     The in-memory index to print.
      */
     public static void printIndex(TreeMap<String, TreeSet<Posting>> index) {
         Set<String> terms = index.keySet();
 
         for (String term : terms) {
-            System.out.print(term);
-            System.out.print(" ->");
+            System.out.print(term + " => ");
             TreeSet<Posting> postings = index.get(term);
             for (Posting posting : postings) {
                 System.out.print(" " + posting.getDocId());
@@ -364,6 +224,19 @@ public class Indexer {
             System.out.println();
         }
 
+    }
+
+
+    /**
+     * Prints {@code <doc_id, stored_field(s)>} tuples from the given in-memory store.
+     *
+     * @param store
+     *     The in-memory store to print.
+     */
+    public static void printStore(LinkedHashMap<Long, String> store) {
+        for (Map.Entry<Long,String> entry : store.entrySet()) {
+            System.out.println(entry.getKey() + " => " + entry.getValue());
+        }
     }
 
 }

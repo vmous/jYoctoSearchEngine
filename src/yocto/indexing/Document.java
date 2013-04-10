@@ -12,6 +12,9 @@ public abstract class Document {
     /** The document id. */
     private final long id;
 
+    /** The document's human readable label */
+    private final String label;
+
     /** The document's indexable content. */
     private final String content;
 
@@ -21,8 +24,9 @@ public abstract class Document {
      * @param id
      *     The document id;
      */
-    public Document(long id, String content) {
+    public Document(long id, String label, String content) {
         this.id = id;
+        this.label = label;
         this.content = content;
     }
 
@@ -35,6 +39,17 @@ public abstract class Document {
      */
     public long getId() {
         return id;
+    }
+
+
+    /**
+     * Gets the document label.
+     *
+     * @return
+     *     The document labe.
+     */
+    public String getLabel() {
+        return label;
     }
 
 

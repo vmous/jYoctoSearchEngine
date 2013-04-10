@@ -11,9 +11,6 @@ import yocto.indexing.Document;
  */
 public class WikiPage extends Document {
 
-    /** The Wikipedia article page title. */
-    private final String title;
-
     /** The Wikipedia article page revision contributor username. */
     private final String revisionContributorUsername;
 
@@ -32,24 +29,12 @@ public class WikiPage extends Document {
      */
     public WikiPage(String title, long id,
             String revisionContributorUsername, String revisionText) {
-        super(id, revisionText);
-        this.title = title;
+        super(id, title, revisionText);
         this.revisionContributorUsername = revisionContributorUsername;
     }
 
 
     // -- Getters
-
-
-    /**
-     * Gets the page title.
-     *
-     * @return
-     *     The page title.
-     */
-    public String getTitle() {
-        return title;
-    }
 
 
     /**

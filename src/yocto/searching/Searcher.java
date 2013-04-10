@@ -2,12 +2,12 @@ package yocto.searching;
 
 import java.io.DataInputStream;
 import java.io.EOFException;
-import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -17,17 +17,26 @@ import java.util.TreeMap;
  */
 public class Searcher {
 
-    /***/
-    private final String offsetsPathName;
+    private final String pathnameIndex;
+    private final String pathnameIndexOffsets;
+    private final String pathnameStore;
+    private final String pathnameStoreOffsets;
+
+    /**
+     * Tree data structure may enable partial matching???
+     * else a hash map is the fastest lookup
+     * (luck favours the brave:)
+     */
+    private TreeMap<String, Integer> indexLookup;
 
     /***/
-    private final String indexPathName;
-
-    /***/
-    private TreeMap<String, Integer> dictionary;
+    private HashMap<Long, Integer> storeLookup;
 
     /***/
     private RandomAccessFile index;
+
+    /***/
+    private RandomAccessFile store;
 
 
     /**
@@ -39,11 +48,17 @@ public class Searcher {
      *     Pathname to the index file.
      * @throws FileNotFoundException
      */
-    public Searcher(String offsetsPathName, String indexPathName) throws FileNotFoundException {
-        this.offsetsPathName = offsetsPathName;
-        this.indexPathName = indexPathName;
-        loadDictionary();
+    public Searcher(String pathnameIndex, String pathnameIndexOffsets,
+            String pathnameStore, String pathnameStoreOffsets)
+                    throws FileNotFoundException {
+        this.pathnameIndex = pathnameIndex;
+        this.pathnameIndexOffsets = pathnameIndexOffsets;
+        this.pathnameStore = pathnameStore;
+        this.pathnameStoreOffsets = pathnameStoreOffsets;
+        loadIndexLookup();
+        loadStoreLookup();
         openIndex();
+        openStore();
     }
 
 
@@ -59,17 +74,26 @@ public class Searcher {
     public List<String> searchQuery(String query) {
         List<String> hits = new ArrayList<String>();
 
-        Integer offset = dictionary.get(query);
+        Integer offIndex = indexLookup.get(query);
 
-        if (offset != null) {
+        if (offIndex != null) {
             try {
-                index.seek(offset.longValue());
+                index.seek(offIndex.longValue());
 
                 // Retrieve the number of postings...
                 int postingsListSize = index.readInt();
                 for (int i = 0; i < postingsListSize; i++) {
                     long docId = index.readLong();
-                    hits.add(docId + "");
+                    Integer offStore = storeLookup.get(docId);
+                    String label;
+                    if (offStore != null) {
+                        System.err.println("offset: " + Integer.toHexString(offStore.intValue()));
+                        store.seek(offStore.longValue());
+                        label = store.readUTF();
+                    }
+                    else label = docId+"";
+
+                    hits.add(label);
                 }
             } catch (IOException e) {
                 e.printStackTrace();
@@ -81,37 +105,60 @@ public class Searcher {
 
 
     /**
-     * Loads the look-up dictionary to the memory.
+     * Loads the look-up table for the index into the memory.
      *
      * @throws FileNotFoundException
      */
-    private void loadDictionary() throws FileNotFoundException {
-        File fOff = new File(offsetsPathName);
-        FileInputStream fisOff = null;
-        DataInputStream disOff = null;
+    private void loadIndexLookup() throws FileNotFoundException {
+        DataInputStream dis = null;
 
-        dictionary = new TreeMap<String, Integer>();
+        indexLookup = new TreeMap<String, Integer>();
 
-        fisOff = new FileInputStream(fOff);
-        disOff = new DataInputStream(fisOff);
+        dis = new DataInputStream(new FileInputStream(pathnameIndexOffsets));
 
         try {
             while (true) {
-                dictionary.put(disOff.readUTF(), new Integer(disOff.readInt()));
+                indexLookup.put(dis.readUTF(), new Integer(dis.readInt()));
+            }
+        } catch (EOFException eofe) {
+            // Done reading offsets file.
+        } catch (IOException ioe) {
+            ioe.printStackTrace();
+        } finally {
+            try {
+                if (dis != null) dis.close();
+            } catch (IOException ioe) {
+                ioe.printStackTrace();
+            }
+        }
+    }
+
+
+    /**
+     * Loads the look-up table for the store into the memory.
+     *
+     * @throws FileNotFoundException
+     */
+    private void loadStoreLookup() throws FileNotFoundException {
+        DataInputStream dis = null;
+
+        storeLookup = new HashMap<Long, Integer>();
+
+        dis = new DataInputStream(new FileInputStream(pathnameStoreOffsets));
+
+        try {
+            while (true) {
+                storeLookup.put(new Long(dis.readLong()), new Integer(dis.readInt()));
             }
         }
         catch (EOFException eofe) {
             // Done reading offsets file.
-        }
-        catch (IOException ioe) {
+        } catch (IOException ioe) {
             ioe.printStackTrace();
-        }
-        finally {
+        } finally {
             try {
-                if (disOff != null) disOff.close();
-                if (fisOff != null) fisOff.close();
-            }
-            catch (IOException ioe) {
+                if (dis != null) dis.close();
+            } catch (IOException ioe) {
                 ioe.printStackTrace();
             }
         }
@@ -124,7 +171,17 @@ public class Searcher {
      * @throws FileNotFoundException
      */
     private void openIndex() throws FileNotFoundException {
-        this.index = new RandomAccessFile(indexPathName, "r");
+        this.index = new RandomAccessFile(pathnameIndex, "r");
+    }
+
+
+    /**
+     * Opens the store file.
+     *
+     * @throws FileNotFoundException
+     */
+    private void openStore() throws FileNotFoundException {
+        this.store = new RandomAccessFile(pathnameStore, "r");
     }
 
 
@@ -151,6 +208,7 @@ public class Searcher {
         super.finalize();
 
         index.close();
+        store.close();
     }
 
 }

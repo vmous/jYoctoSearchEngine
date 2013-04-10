@@ -7,6 +7,7 @@ import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
 
 import yocto.indexing.Indexer;
+import yocto.storage.DiskManager;
 
 /**
  * The hanlder that handles the parsing of a Wikipedia XML dump file.
@@ -72,7 +73,7 @@ public class SAXWikipediaXMLDumpHandler extends DefaultHandler {
     public void startDocument() throws SAXException {
         super.startDocument();
 
-        indexer = new Indexer();
+        indexer = new Indexer(new DiskManager("."));
 
         // Created once, used many times...
         // Do not forget to delete( ) at the end of each page element!

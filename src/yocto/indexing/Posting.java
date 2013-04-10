@@ -15,7 +15,7 @@ public class Posting implements Comparable<Posting> {
     /** The document id number associated with this posting. */
     private final long docId;
 
-    /** The term frequency of the term in th specific document. */
+    /** The term frequency of the term in the specific document. */
     private final long tf;
 
 
