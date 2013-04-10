@@ -191,7 +191,7 @@ public class Indexer {
 
         } // -- while there are documents
 
-        printIndex(index);
+//        printIndex(index);
 //        printStore(store);
 
         // Persist to disk
