@@ -158,8 +158,8 @@ public class DiskManager {
     public void appendStore(LinkedHashMap<Long, String> store) {
 
         try {
-            dosStore = new DataOutputStream(new FileOutputStream(pathnameStore));
-            dosStoreOffsets = new DataOutputStream(new FileOutputStream(pathnameStoreOffsets));
+            dosStore = new DataOutputStream(new FileOutputStream(pathnameStore, true));
+            dosStoreOffsets = new DataOutputStream(new FileOutputStream(pathnameStoreOffsets, true));
 
             int offset;
             for (Map.Entry<Long,String> entry : store.entrySet()) {
