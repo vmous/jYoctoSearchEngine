@@ -1,5 +1,6 @@
 package yocto.storage;
 
+import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.EOFException;
@@ -24,11 +25,11 @@ import yocto.indexing.Posting;
  */
 public class DiskManager {
 //    public static final String INDEX_FILENAME = "indx";
-//    public static final String INDEX_OFFSETS_FILENAME = "off_indx";
+//    public static final String INDEX_OFFSETS_FILENAME = "indx.off";
     public static final String SEGMENT_FILENAME = "_seg.";
-    public static final String SEGMENT_OFFSETS_FILENAME = "_off_seg.";
+    public static final String SEGMENT_OFFSETS_FILENAME = "_seg.off.";
     public static final String STORE_FILENAME = "stor";
-    public static final String STORE_OFFSETS_FILENAME = "off_stor";
+    public static final String STORE_OFFSETS_FILENAME = "stor.off";
 
 //    private final String pathnameIndex;
 //    private final String pathnameIndexOffsets;
@@ -39,10 +40,6 @@ public class DiskManager {
 
 //    private DataOutputStream dosIndex;
 //    private DataOutputStream dosIndexOffsets;
-    private DataOutputStream dosSegment;
-    private DataOutputStream dosSegmentOffsets;
-    private DataOutputStream dosStore;
-    private DataOutputStream dosStoreOffsets;
 
     /**The number of processed segments*/
     private int numSegments;
@@ -68,11 +65,6 @@ public class DiskManager {
                 ((dir == null || dir.trim().equals("")) ? "" : dir + File.separator) + SEGMENT_OFFSETS_FILENAME;
 
         this.numSegments = 0;
-
-        dosSegment = null;
-        dosSegmentOffsets = null;
-        dosStore = null;
-        dosStoreOffsets = null;
     }
 
 
@@ -80,11 +72,19 @@ public class DiskManager {
      * Persisting index to disk.
      */
     public void writeIndexSegment(TreeMap<String, TreeSet<Posting>> index) {
+        DataOutputStream dosSegment = null;
+        DataOutputStream dosSegmentOffsets = null;
 
         try {
 
-            dosSegment = new DataOutputStream(new FileOutputStream(pathnameSegment + numSegments));
-            dosSegmentOffsets = new DataOutputStream(new FileOutputStream(pathnameSegmentOffsets + numSegments));
+            dosSegment = new DataOutputStream(
+                    new BufferedOutputStream(
+                            new FileOutputStream(pathnameSegment + numSegments),
+                            32 * 1024));
+            dosSegmentOffsets = new DataOutputStream(
+                    new BufferedOutputStream(
+                            new FileOutputStream(pathnameSegmentOffsets + numSegments),
+                            32 * 1024));
             numSegments++;
 
             Set<String> terms = index.keySet();
@@ -122,8 +122,6 @@ public class DiskManager {
                 } // -- while postings
             } // -- for all terms
 
-            numSegments++;
-
             // clear the in-memory index since persisted on disk.
             // TODO maybe this is a POB if multi-threaded.
 //            index.clear();
@@ -134,11 +132,9 @@ public class DiskManager {
         } finally {
             try {
                 if (dosSegment != null) {
-                    dosSegment.flush();
                     dosSegment.close();
                 }
                 if (dosSegmentOffsets != null) {
-                    dosSegmentOffsets.flush();
                     dosSegmentOffsets.close();
                 }
             } catch (IOException ioe) {
@@ -156,10 +152,18 @@ public class DiskManager {
      * the documents are assigned a monotonically increasing id number.
      */
     public void appendStore(LinkedHashMap<Long, String> store) {
+        DataOutputStream dosStore = null;
+        DataOutputStream dosStoreOffsets = null;
 
         try {
-            dosStore = new DataOutputStream(new FileOutputStream(pathnameStore, true));
-            dosStoreOffsets = new DataOutputStream(new FileOutputStream(pathnameStoreOffsets, true));
+            dosStore = new DataOutputStream(
+                    new BufferedOutputStream(
+                            new FileOutputStream(pathnameStore, true),
+                            32 * 1024));
+            dosStoreOffsets = new DataOutputStream(
+                    new BufferedOutputStream(
+                            new FileOutputStream(pathnameStoreOffsets, true),
+                            32 * 1024));
 
             int offset;
             for (Map.Entry<Long,String> entry : store.entrySet()) {
@@ -193,11 +197,9 @@ public class DiskManager {
         } finally {
             try {
                 if (dosStore != null) {
-                    dosStore.flush();
                     dosStore.close();
                 }
                 if (dosStoreOffsets != null) {
-                    dosStoreOffsets.flush();
                     dosStoreOffsets.close();
                 }
             } catch (IOException ioe) {
@@ -211,7 +213,8 @@ public class DiskManager {
      *
      * TODO Currently only reads and prints (TESTING!).
      */
-    private static void mergeSegmentsOnDisk() {
+    private static void mergeSegmentsOnDisk(String segmentOne, String segmentOffsetsOne,
+            String segmentTwo, String segmentOffsetsTwo) {
 
         File fSeg = new File("./seg." + 0);
         File fOff = new File("./seg.i." + 0);

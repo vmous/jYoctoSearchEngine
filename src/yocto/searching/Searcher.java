@@ -1,5 +1,6 @@
 package yocto.searching;
 
+import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.FileInputStream;
@@ -114,7 +115,10 @@ public class Searcher {
 
         indexLookup = new TreeMap<String, Integer>();
 
-        dis = new DataInputStream(new FileInputStream(pathnameIndexOffsets));
+        dis = new DataInputStream(
+                new BufferedInputStream(
+                        new FileInputStream(pathnameIndexOffsets),
+                        32 * 1024));
 
         try {
             while (true) {
@@ -144,7 +148,10 @@ public class Searcher {
 
         storeLookup = new HashMap<Long, Integer>();
 
-        dis = new DataInputStream(new FileInputStream(pathnameStoreOffsets));
+        dis = new DataInputStream(
+                new BufferedInputStream(
+                        new FileInputStream(pathnameStoreOffsets),
+                        32 * 1024));
 
         try {
             while (true) {
