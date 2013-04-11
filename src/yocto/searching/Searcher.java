@@ -28,10 +28,10 @@ public class Searcher {
      * else a hash map is the fastest lookup
      * (luck favours the brave:)
      */
-    private TreeMap<String, Integer> indexLookup;
+    private TreeMap<String, Long> indexLookup;
 
     /***/
-    private HashMap<Long, Integer> storeLookup;
+    private HashMap<Long, Long> storeLookup;
 
     /***/
     private RandomAccessFile index;
@@ -75,7 +75,7 @@ public class Searcher {
     public List<String> searchQuery(String query) {
         List<String> hits = new ArrayList<String>();
 
-        Integer offIndex = indexLookup.get(query);
+        Long offIndex = indexLookup.get(query);
 
         if (offIndex != null) {
             try {
@@ -85,10 +85,9 @@ public class Searcher {
                 int postingsListSize = index.readInt();
                 for (int i = 0; i < postingsListSize; i++) {
                     long docId = index.readLong();
-                    Integer offStore = storeLookup.get(docId);
+                    Long offStore = storeLookup.get(docId);
                     String label;
                     if (offStore != null) {
-                        System.err.println("offset: " + Integer.toHexString(offStore.intValue()));
                         store.seek(offStore.longValue());
                         label = store.readUTF();
                     }
@@ -113,7 +112,7 @@ public class Searcher {
     private void loadIndexLookup() throws FileNotFoundException {
         DataInputStream dis = null;
 
-        indexLookup = new TreeMap<String, Integer>();
+        indexLookup = new TreeMap<String, Long>();
 
         dis = new DataInputStream(
                 new BufferedInputStream(
@@ -122,7 +121,7 @@ public class Searcher {
 
         try {
             while (true) {
-                indexLookup.put(dis.readUTF(), new Integer(dis.readInt()));
+                indexLookup.put(dis.readUTF(), new Long(dis.readLong()));
             }
         } catch (EOFException eofe) {
             // Done reading offsets file.
@@ -146,7 +145,7 @@ public class Searcher {
     private void loadStoreLookup() throws FileNotFoundException {
         DataInputStream dis = null;
 
-        storeLookup = new HashMap<Long, Integer>();
+        storeLookup = new HashMap<Long, Long>();
 
         dis = new DataInputStream(
                 new BufferedInputStream(
@@ -155,7 +154,7 @@ public class Searcher {
 
         try {
             while (true) {
-                storeLookup.put(new Long(dis.readLong()), new Integer(dis.readInt()));
+                storeLookup.put(new Long(dis.readLong()), new Long(dis.readLong()));
             }
         }
         catch (EOFException eofe) {

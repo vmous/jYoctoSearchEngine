@@ -73,7 +73,7 @@ public class SAXWikipediaXMLDumpHandler extends DefaultHandler {
     public void startDocument() throws SAXException {
         super.startDocument();
 
-        indexer = new Indexer(new DiskManager("."));
+        indexer = new Indexer(new DiskManager("./index"));
 
         // Created once, used many times...
         // Do not forget to delete( ) at the end of each page element!
