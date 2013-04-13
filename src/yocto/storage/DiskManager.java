@@ -11,12 +11,23 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import yocto.indexing.Posting;
 
@@ -26,8 +37,8 @@ import yocto.indexing.Posting;
  * @author billy
  */
 public class DiskManager {
-    private static final int OUT_BUFF_SIZE = 32 * 1024;
-    private static final int IN_BUFF_SIZE = 32 * 1024;
+    private static final int OUT_BUFF_SIZE = 8 * 1024;
+    private static final int IN_BUFF_SIZE = 4 * 1024;
 
     public static final String INDEX_FILENAME = "indx";
     public static final String INDEX_OFFSETS_FILENAME = "indx.off";
@@ -44,12 +55,26 @@ public class DiskManager {
     private final String pathnameStoreOffsets;
 
     /**The number of processed segments*/
-    private int numSegments;
+    private final AtomicInteger numSegments;
+
+    private final AtomicInteger numMerges;
+
+
+    private final Deque<Segment> segments;
 
     /**
-     * A list of segment files
+     * The thread pool.
      */
-    private ArrayList<File> segments;
+    private final ExecutorService executor;
+
+    /**
+     * A Queue of futures for the submitted threads.
+     */
+    private final Queue<Future<?>> futures;
+
+
+    private long storeOffset = 0;
+
 
     /**
      * Constructor.
@@ -71,8 +96,17 @@ public class DiskManager {
         this.pathnameSegmentOffsets =
                 ((dir == null || dir.trim().equals("")) ? "" : dir + File.separator) + SEGMENT_OFFSETS_FILENAME;
 
-        this.numSegments = 0;
+        this.numSegments = new AtomicInteger();
+        this.numMerges = new AtomicInteger();
+
+        // TODO double check this datastructure for multithreading.
+        this.segments = new ConcurrentLinkedDeque<Segment>();
+        executor = Executors.newSingleThreadExecutor();
+        futures = new LinkedList<Future<?>>();
     }
+
+
+
 
 
     /**
@@ -82,20 +116,21 @@ public class DiskManager {
      *     The in-memory index to persist.
      */
     public void writeIndexSegment(TreeMap<String, TreeSet<Posting>> index) {
-        File fSegment = new File(pathnameSegment + numSegments);
-        File fSegmentOffsets = new File(pathnameSegmentOffsets + numSegments);
+        Segment segment = new Segment(
+                new File(pathnameSegmentOffsets + numSegments),
+                new File(pathnameSegment + numSegments));
 
         try (   DataOutputStream dosSegment = new DataOutputStream(
                         new BufferedOutputStream(
-                                new FileOutputStream(fSegment),
+                                new FileOutputStream(segment.getPostings()),
                                 OUT_BUFF_SIZE));
 
                 DataOutputStream dosSegmentOffsets = new DataOutputStream(
                         new BufferedOutputStream(
-                                new FileOutputStream(fSegmentOffsets),
+                                new FileOutputStream(segment.getOffsets()),
                                 OUT_BUFF_SIZE));)
         {
-            numSegments++;
+            numSegments.incrementAndGet();
 
             Set<String> terms = index.keySet();
 
@@ -113,6 +148,12 @@ public class DiskManager {
                 offset += writeIndexRecord(dosSegment, ir);
 
             } // -- for all terms
+
+            segments.addLast(segment);
+
+            if (segments.size() >= 2) {
+                futures.add(executor.submit(new MergeTask(segments.removeFirst(), segments.removeFirst(), this)));
+            }
 
             // clear the in-memory index since persisted on disk.
             // TODO maybe this is a POB if multi-threaded.
@@ -144,16 +185,14 @@ public class DiskManager {
                                 OUT_BUFF_SIZE));)
         {
 
-            long offset = 0;
-
             for (Map.Entry<Long,String> entry : store.entrySet()) {
 
-                StoreOffsetsRecord sor = new StoreOffsetsRecord(entry.getKey(), offset);
+                StoreOffsetsRecord sor = new StoreOffsetsRecord(entry.getKey(), storeOffset);
                 writeStoreOffsetsRecord(dosStoreOffsets, sor);
                 StoreRecord sr = new StoreRecord(entry.getValue());
                 // The stored field(s) concerning the next document will be
                 // written to store file starting from here.
-                offset += writeStoreRecord(dosStore, sr);
+                storeOffset += writeStoreRecord(dosStore, sr);
 
             } // -- for all documents
 
@@ -170,34 +209,37 @@ public class DiskManager {
      *
      * TODO Currently only reads and prints (TESTING!).
      */
-    private void mergeSegmentsOnDisk(
-            String segmentOne, String segmentOffsetsOne,
-            String segmentTwo, String segmentOffsetsTwo,
-            String merged, String mergedOffsets) {
+    public void mergeSegmentsOnDisk(Segment one, Segment two) {
+
+        System.out.println("Merging!!!!");
+        int i = numSegments.incrementAndGet();
+        Segment merged = new Segment(
+                new File(pathnameSegmentOffsets + i),
+                new File(pathnameSegment + i));
 
         try (   DataInputStream disSegmentOffsetsOne = new DataInputStream(
                         new BufferedInputStream(
-                                new FileInputStream(segmentOffsetsOne),
+                                new FileInputStream(one.getOffsets()),
                                 IN_BUFF_SIZE));
                 DataInputStream disSegmentOne = new DataInputStream(
                         new BufferedInputStream(
-                                new FileInputStream(segmentOne),
+                                new FileInputStream(one.getPostings()),
                                 IN_BUFF_SIZE));
                 DataInputStream disSegmentOffsetsTwo = new DataInputStream(
                         new BufferedInputStream(
-                                new FileInputStream(segmentOffsetsTwo),
+                                new FileInputStream(two.getOffsets()),
                                 IN_BUFF_SIZE));
                 DataInputStream disSegmentTwo = new DataInputStream(
                         new BufferedInputStream(
-                                new FileInputStream(segmentTwo),
+                                new FileInputStream(two.getPostings()),
                                 IN_BUFF_SIZE));
                 DataOutputStream dosMergedOffsets = new DataOutputStream(
                         new BufferedOutputStream(
-                                new FileOutputStream(mergedOffsets),
+                                new FileOutputStream(merged.getOffsets()),
                                 OUT_BUFF_SIZE));
                 DataOutputStream dosMerged = new DataOutputStream(
                         new BufferedOutputStream(
-                                new FileOutputStream(merged),
+                                new FileOutputStream(merged.getPostings()),
                                 OUT_BUFF_SIZE));)
         {
             IndexOffsetsRecord iorOne = null;
@@ -298,13 +340,19 @@ public class DiskManager {
 
             } // -- while I can read the streams
 
-
         } catch (FileNotFoundException e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
         } catch (IOException e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
+        } finally {
+            segments.addLast(merged);
+
+            if (segments.size() >= 2) {
+                futures.add(executor.submit(new MergeTask(segments.removeFirst(), segments.removeFirst(), this)));
+            }
+
+
+            numMerges.incrementAndGet();
         }
 
     }
@@ -578,6 +626,39 @@ public class DiskManager {
         dos.writeUTF(record.getStored());
 
         return dos.size() - bytesWritten;
+    }
+
+
+    public void halt() {
+        while (!futures.isEmpty() ) {
+            System.out.println(futures.size());
+            try {
+                futures.remove().get();
+            }
+            catch (InterruptedException | ExecutionException e) {
+                e.printStackTrace();
+            }
+        }
+
+        executor.shutdown(); // Disable new tasks from being submitted
+        try {
+            // Wait a while for existing tasks to terminate
+            if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
+                executor.shutdownNow(); // Cancel currently executing tasks
+                // Wait a while for tasks to respond to being cancelled
+                if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
+                    System.err.println("Pool did not terminate.");
+                }
+            }
+        }
+        catch (InterruptedException ie) {
+            ie.printStackTrace();
+
+            // (Re-)Cancel if current thread also interrupted
+            executor.shutdownNow();
+            // Preserve interrupt status
+            Thread.currentThread().interrupt();
+        }
     }
 
 }

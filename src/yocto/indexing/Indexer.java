@@ -1,14 +1,18 @@
 package yocto.indexing;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import yocto.indexing.parsing.wikipedia.WikiPageAnalyzer;
@@ -59,7 +63,14 @@ public class Indexer {
     private final DiskManager dm;
 
     /** The queue of the documents to be indexed. */
-    private final List<Document> queue;
+    private final Queue<Document> documents;
+
+    // TODO
+    // Recheck this batch size approach. Might be better the batch size
+    // to be dynamically chosen with respect to the available memory.
+
+    /** Defines the number of documents each inversion will handle */
+    private final int batchSize;
 
     /** The number of documents indexed **/
     private long docNum;
@@ -67,13 +78,21 @@ public class Indexer {
 
     /**
      * Constructor.
+     *
+     * @param dm
+     *     The disk manager associated with this indexer.
+     * @param batchSize
+     *     The threshold in the number of documents added to the indexer that
+     *     triggers the actual indexing. Should be carefully chosen taking into
+     *     account the memory available to the indexer (JVM + actual physical).
      */
-    public Indexer(DiskManager dm) {
+    public Indexer(DiskManager dm, int batchSize) {
         this.index = new TreeMap<String, TreeSet<Posting>>();
         this.store = new LinkedHashMap<Long, String>();
         this.dm = dm;
         this.docNum = 0;
-        this.queue = new ArrayList<>();
+        this.documents = new LinkedList<Document>();
+        this.batchSize = batchSize;
     }
 
 
@@ -88,11 +107,9 @@ public class Indexer {
      *     The document to be indexed.
      */
     public void addDocument(Document doc) {
-        queue.add(doc);
+        documents.offer(doc);
 
-        // TODO Recheck this naive policy which is tightly coupled with
-        //      the Wikipedia corpus.
-        if (queue.size() >= 20000) {
+        if (documents.size() >= batchSize) {
             forceCommit();
         }
     }
@@ -104,6 +121,19 @@ public class Indexer {
      */
     public void forceCommit() {
         commit();
+    }
+
+
+    /**
+     * Closes the indexer.
+     *
+     * This commits any documents remaining in the queue and makes sure the
+     * final, merged index is properly written to disk.
+     */
+    public void close() {
+        commit();
+
+        dm.halt();
     }
 
 
@@ -133,7 +163,7 @@ public class Indexer {
      *      analyzer object.
      */
     protected void invertSPIMI() {
-        System.out.print("Feeding " + queue.size() +" documents... ");
+        System.out.print("Feeding " + documents.size() +" documents... ");
 
         // Stats
         long startTime = System.nanoTime();
@@ -142,13 +172,9 @@ public class Indexer {
 
         Document doc;
         HashSet<String> docTerms;
-        Iterator<Document> iter = queue.iterator();
 
         // Iterate through all available documents.
-        while (iter.hasNext()) {
-
-            doc = iter.next();
-            iter.remove();
+        while ( (doc = documents.poll()) != null ) {
 
             // -- Keep the stored fields.
 
