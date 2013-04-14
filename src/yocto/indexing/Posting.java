@@ -12,10 +12,13 @@ package yocto.indexing;
  */
 public class Posting implements Comparable<Posting> {
 
-    /** The document id number associated with this posting. */
+    /* The document id number associated with this posting. */
     private final long docId;
 
-    /** The term frequency of the term in the specific document. */
+    /*
+     * The term frequency of the term in the specific document.
+     * TODO Currently not used but good to know where it goes...
+     */
     private final long tf;
 
 

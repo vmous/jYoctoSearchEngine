@@ -8,7 +8,7 @@ import java.util.concurrent.TimeUnit;
 
 import yocto.searching.Searcher;
 
-public class SearchTester {
+public class SearchingTest {
 
     /**
      * The version of the crawler.

@@ -9,16 +9,16 @@ import java.lang.reflect.Field;
  */
 public class Document {
 
-    /** The document id. */
+    /* The document id. */
     private final long id;
 
-    /** The document's human readable label */
+    /* The document's human readable label */
     private final String label;
 
-    /** The document's indexable content. */
+    /* The document's indexable content. */
     private final String content;
 
-    /** The document's author. */
+    /* The document's author. */
     private final String author;
 
     /**

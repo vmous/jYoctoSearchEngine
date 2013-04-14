@@ -4,7 +4,6 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.HashSet;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -44,14 +43,12 @@ public class WikiPageAnalyzer {
 
     /**
      * The path name to the stopwords file to be loaded. The file format
-     * supported is one stopword in each line.
+     * supported is one stopword per line.
      */
     public static final String STOPWORDS_FILE = "./resources/stopwords.en.txt";
 
     /**
      * Stopwords are loaded in this instance variable set.
-     *
-     * TODO Maybe I can consider to make this a static resource!
      */
     private final HashSet<String> stopwords;
 
@@ -62,10 +59,7 @@ public class WikiPageAnalyzer {
     private WikiPageAnalyzer() {
         stopwords = new HashSet<String>();
 
-        BufferedReader br = null;
-
-        try {
-            br = new BufferedReader(new FileReader(STOPWORDS_FILE));
+        try (BufferedReader br = new BufferedReader(new FileReader(STOPWORDS_FILE))) {
             String line;
             while((line = br.readLine()) != null) {
                 stopwords.add(line);
@@ -74,14 +68,6 @@ public class WikiPageAnalyzer {
         catch (IOException ioe) {
             ioe.printStackTrace();
         }
-        finally {
-            try {
-                if (br != null) br.close();
-            }
-            catch (IOException ioe) {
-                ioe.printStackTrace();
-            }
-        }
     }
 
 
@@ -89,13 +75,12 @@ public class WikiPageAnalyzer {
      * A non-syncrohized getter for {@code WikiPageAnalyzer} singleton
      * instance.
      *
-     * TODO If I use multiple threads for parallel analysis I need to
-     * review this!
-     *
      * @return
      *     The singleton instance of the {@code WikiPageAnalyzer}.
      */
     public static WikiPageAnalyzer getInstance() {
+        // TODO If I use multiple threads for parallel analysis I need to
+        // review this!
 
         if (INSTANCE == null) INSTANCE = new WikiPageAnalyzer();
 
@@ -117,8 +102,6 @@ public class WikiPageAnalyzer {
     /**
      * Tokenizes a string.
      *
-     * TODO Needs refinement!
-     *
      * @param normalizedPageRevisionText
      *     The string to be tokenized. It is recommended that this string is
      *     first normalized before doing this for better results.
@@ -134,13 +117,10 @@ public class WikiPageAnalyzer {
             HashSet<String> stopwords) {
         HashSet<String> bagOfWords = new HashSet<String>();
 
-//        System.out.println(normalizedPageRevisionText);
-
         // Simple tokenization on non-alphanumeric characters.
         String[] tokens = normalizedPageRevisionText.split("[\\W]+");
 
         for (String token : tokens) {
-//            System.out.println(token);
             if (!token.equals("")) {
                 if (stopwords != null) {
                     if (!stopwords.contains(token)) {
@@ -159,8 +139,13 @@ public class WikiPageAnalyzer {
 
     /**
      * Normalizes a string.
-     *
-     * TODO Needs refinement!
+     * <ul>
+     * Basic steps are:
+     *   <li>lower cases the entire string,</li>
+     *   <li>removes Wikipedia markup,</li>
+     *   <li>removes other tags (some HTML)</li>
+     *   <li>removes numbers</li>
+     * </ul>
      *
      * @param rawPageRevisionText
      *     The string to be normalized (most of the time in raw format with
@@ -170,6 +155,8 @@ public class WikiPageAnalyzer {
      *     A normalized version of the given string.
      */
     public static String normalizePlainPageRevisionText(String rawPageRevisionText) {
+        // TODO Needs refinement! Some pattern matches where very heavy
+        // computationally.
 
         rawPageRevisionText = rawPageRevisionText.toLowerCase();
         rawPageRevisionText = WIKI_P0.matcher(rawPageRevisionText).replaceAll(" ");
@@ -198,7 +185,6 @@ public class WikiPageAnalyzer {
         rawPageRevisionText = WIKI_P21.matcher(rawPageRevisionText).replaceAll(" ");
 
         return rawPageRevisionText;
-
     }
 
 }

@@ -18,25 +18,34 @@ import java.util.TreeMap;
  */
 public class Searcher {
 
+    /* Pathname to index postings file. */
     private final String pathnameIndex;
+
+    /* Pathname to index offsets file. */
     private final String pathnameIndexOffsets;
+
+    /* Path name to store file. */
     private final String pathnameStore;
+
+    /* Path name to store offsets file. */
     private final String pathnameStoreOffsets;
 
-    /**
-     * Tree data structure may enable partial matching???
+    /*
+     * In-memory data structure of fast and shorted index file lookup.
+     *
+     * TODO Tree data structure may enable partial matching???
      * else a hash map is the fastest lookup
      * (luck favours the brave:)
      */
     private TreeMap<String, Long> indexLookup;
 
-    /***/
+    /* In-memeory data structure of fast store file lookup. */
     private HashMap<Long, Long> storeLookup;
 
-    /***/
+    /* The index file for random access. */
     private RandomAccessFile index;
 
-    /***/
+    /* The store file for random access. */
     private RandomAccessFile store;
 
 
@@ -47,6 +56,7 @@ public class Searcher {
      *     Pathname to the offsets file.
      * @param indexPathName
      *     Pathname to the index file.
+     *
      * @throws FileNotFoundException
      */
     public Searcher(String pathnameIndex, String pathnameIndexOffsets,

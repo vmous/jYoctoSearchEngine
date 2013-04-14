@@ -10,18 +10,15 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Deque;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
-import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -32,47 +29,75 @@ import java.util.concurrent.atomic.AtomicInteger;
 import yocto.indexing.Posting;
 
 /**
- *
+ * The underlying persistence storage management class.
  *
  * @author billy
  */
 public class DiskManager {
+
+    /* The buffer for writing. */
     private static final int OUT_BUFF_SIZE = 8 * 1024;
+
+    /* The buffer for reading. */
     private static final int IN_BUFF_SIZE = 4 * 1024;
 
-    public static final String INDEX_FILENAME = "indx";
-    public static final String INDEX_OFFSETS_FILENAME = "indx.off";
-    public static final String SEGMENT_FILENAME = "_seg.";
-    public static final String SEGMENT_OFFSETS_FILENAME = "_seg.off.";
-    public static final String STORE_FILENAME = "stor";
-    public static final String STORE_OFFSETS_FILENAME = "stor.off";
+    /* The file naming. */
+//    private static final String INDEX_FILENAME = "indx";
+//    private static final String INDEX_OFFSETS_FILENAME = "indx.off";
+    private static final String SEGMENT_FILENAME = "_seg.";
+    private static final String SEGMENT_OFFSETS_FILENAME = "_seg.off.";
+    private static final String STORE_FILENAME = "stor";
+    private static final String STORE_OFFSETS_FILENAME = "stor.off";
 
+//    /* The pathname to the index file. */
 //    private final String pathnameIndex;
+//
+//    /* The pathname to the index offsets file. */
 //    private final String pathnameIndexOffsets;
+
+    /*
+     * The pathname to a segment file. The manager appends an id number for a
+     * specific file.
+     */
     private final String pathnameSegment;
+
+    /*
+     * The pathname to a segment offsets file. The manager appends an id number
+     * for a specific file.
+     */
     private final String pathnameSegmentOffsets;
+
+    /* The pathname to the store file. */
     private final String pathnameStore;
+
+    /* The pathname to the store offsets file. */
     private final String pathnameStoreOffsets;
 
-    /**The number of processed segments*/
+    /*
+     * The number of processed segments. Used for naming. Accessed by both the
+     * main inverting thread and the background merging worker thread thus
+     * needs to be consistently increment.
+     */
     private final AtomicInteger numSegments;
 
-    private final AtomicInteger numMerges;
+    /*
+     * The queue where the producing, inverting main thread offers new segments.
+     * This is from where new merging tasks are created.
+     */
+    private final Queue<Segment> segments;
 
-
-    private final Deque<Segment> segments;
-
-    /**
+    /*
      * The thread pool.
      */
     private final ExecutorService executor;
 
-    /**
+    /*
      * A Queue of futures for the submitted threads.
      */
     private final Queue<Future<?>> futures;
 
 
+    /* The offset for the store file */
     private long storeOffset = 0;
 
 
@@ -80,9 +105,13 @@ public class DiskManager {
      * Constructor.
      *
      * @param dir
-     *     The directory
+     *     The directory to store.
      */
     public DiskManager(String dir) {
+        File d = new File(dir);
+        if( !d.exists() )
+            d.mkdirs();
+
 //        this.pathnameIndex =
 //                ((dir == null || dir.trim().equals("")) ? "" : dir + File.separator) + INDEX_FILENAME;
 //        this.pathnameIndexOffsets =
@@ -97,16 +126,59 @@ public class DiskManager {
                 ((dir == null || dir.trim().equals("")) ? "" : dir + File.separator) + SEGMENT_OFFSETS_FILENAME;
 
         this.numSegments = new AtomicInteger();
-        this.numMerges = new AtomicInteger();
 
         // TODO double check this datastructure for multithreading.
-        this.segments = new ConcurrentLinkedDeque<Segment>();
+        this.segments = new ConcurrentLinkedQueue<Segment>();
+
+        // Currently one merging thread.
         executor = Executors.newSingleThreadExecutor();
+
         futures = new LinkedList<Future<?>>();
     }
 
 
+    /**
+     * Opens the disk manager.
+     */
+    public void open() {
+    }
 
+
+    /**
+     * Closes the disk manager. This will block until all threads have concluded.
+     */
+    public void close() {
+        while (!futures.isEmpty() ) {
+//            System.out.println(futures.size());
+            try {
+                futures.remove().get();
+            }
+            catch (InterruptedException | ExecutionException e) {
+                e.printStackTrace();
+            }
+        }
+
+        executor.shutdown(); // Disable new tasks from being submitted
+
+        try {
+            // Wait a while for existing tasks to terminate
+            if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
+                executor.shutdownNow(); // Cancel currently executing tasks
+                // Wait a while for tasks to respond to being cancelled
+                if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
+                    System.err.println("Pool did not terminate.");
+                }
+            }
+        }
+        catch (InterruptedException ie) {
+            ie.printStackTrace();
+
+            // (Re-)Cancel if current thread also interrupted
+            executor.shutdownNow();
+            // Preserve interrupt status
+            Thread.currentThread().interrupt();
+        }
+    }
 
 
     /**
@@ -116,9 +188,12 @@ public class DiskManager {
      *     The in-memory index to persist.
      */
     public void writeIndexSegment(TreeMap<String, TreeSet<Posting>> index) {
+        int i = numSegments.getAndIncrement();
         Segment segment = new Segment(
-                new File(pathnameSegmentOffsets + numSegments),
-                new File(pathnameSegment + numSegments));
+                new File(pathnameSegmentOffsets + i),
+                new File(pathnameSegment + i));
+
+//        System.out.println("\n\nSegment: " + segment.getPostings() + "\n\n");
 
         try (   DataOutputStream dosSegment = new DataOutputStream(
                         new BufferedOutputStream(
@@ -130,29 +205,30 @@ public class DiskManager {
                                 new FileOutputStream(segment.getOffsets()),
                                 OUT_BUFF_SIZE));)
         {
-            numSegments.incrementAndGet();
+
 
             Set<String> terms = index.keySet();
-
+            Iterator<String> iter = terms.iterator();
             TreeSet<Posting> termPostings;
             long offset = 0;
-
-            for (String term : terms) {
-                IndexOffsetsRecord ior = new IndexOffsetsRecord(term, offset);
-                writeIndexOffsetsRecord(dosSegmentOffsets, ior);
+            String term = "";
+            while (iter.hasNext()) {
+                term = iter.next();
+                PostingsOffsetsRecord por = new PostingsOffsetsRecord(term, offset);
+                writePostingsOffsetsRecord(dosSegmentOffsets, por);
 
                 termPostings = index.get(term);
-                IndexRecord ir = new IndexRecord(termPostings.size(), termPostings);
+                PostingsRecord pr = new PostingsRecord(termPostings.size(), termPostings);
                 // The data concerning the next term will be written
                 // to segment file starting from here.
-                offset += writeIndexRecord(dosSegment, ir);
+                offset += writePostingsRecord(dosSegment, pr);
 
             } // -- for all terms
 
-            segments.addLast(segment);
+            segments.offer(segment);
 
             if (segments.size() >= 2) {
-                futures.add(executor.submit(new MergeTask(segments.removeFirst(), segments.removeFirst(), this)));
+                futures.add(executor.submit(new MergeTask(segments.poll(), segments.poll(), this)));
             }
 
             // clear the in-memory index since persisted on disk.
@@ -205,17 +281,20 @@ public class DiskManager {
 
 
     /**
-     * Merge all segments to one humongous index
+     * Merging two segments into one.
      *
-     * TODO Currently only reads and prints (TESTING!).
+     * @param one
+     *     The first segment to be merged.
+     * @param two
+     *     The second segment to be merged.
      */
     public void mergeSegmentsOnDisk(Segment one, Segment two) {
-
-        System.out.println("Merging!!!!");
-        int i = numSegments.incrementAndGet();
+        int i = numSegments.getAndIncrement();
         Segment merged = new Segment(
                 new File(pathnameSegmentOffsets + i),
                 new File(pathnameSegment + i));
+
+//        System.out.println("\n\nMerging: " + one.getPostings() + " + " + two.getPostings() + " -> " + merged.getPostings() + "\n\n");
 
         try (   DataInputStream disSegmentOffsetsOne = new DataInputStream(
                         new BufferedInputStream(
@@ -242,149 +321,202 @@ public class DiskManager {
                                 new FileOutputStream(merged.getPostings()),
                                 OUT_BUFF_SIZE));)
         {
-            IndexOffsetsRecord iorOne = null;
-            IndexRecord irOne = null;
+            PostingsOffsetsRecord porOne = null;
+            PostingsRecord prOne = null;
 
-            IndexOffsetsRecord iorTwo = null;
-            IndexRecord irTwo = null;
+            PostingsOffsetsRecord porTwo = null;
+            PostingsRecord prTwo = null;
 
-            IndexOffsetsRecord iorMerged = null;
-            IndexRecord irMerged = null;
+            PostingsOffsetsRecord porMerged = null;
+            PostingsRecord prMerged = null;
 
             long offsetMerged = 0;
             int ordering = 0;
 
             while (true) {
 
-                if (iorOne == null) {
-                    if (    ((iorOne = readIndexOffsetsRecord(disSegmentOffsetsOne)) == null ) ||
-                            ((irOne = readIndexRecord(disSegmentOne)) == null))
+                if (porOne == null) {
+                    if (    ((porOne = readPostingsOffsetsRecord(disSegmentOffsetsOne)) == null ) ||
+                            ((prOne = readPostingsRecord(disSegmentOne)) == null))
                     {
                         // Segment one EOF
 
                         // Write the objects you might have currently from segment two...
-                        if (iorTwo != null) {
-                            irMerged = irTwo;
-                            iorMerged = new IndexOffsetsRecord(iorTwo.getTerm(), offsetMerged);
-                            writeIndexOffsetsRecord(dosMergedOffsets, iorMerged);
-                            offsetMerged += writeIndexRecord(dosMerged, irMerged);
+                        if (porTwo != null) {
+                            prMerged = prTwo;
+                            porMerged = new PostingsOffsetsRecord(porTwo.getTerm(), offsetMerged);
+                            writePostingsOffsetsRecord(dosMergedOffsets, porMerged);
+                            offsetMerged += writePostingsRecord(dosMerged, prMerged);
                         }
 
                         // And flush the rest of segment two to the merged
                         try {
                             while (true) {
-                                copyIndexOffsetsRecord(disSegmentOffsetsTwo, dosMergedOffsets);
-                                copyIndexRecord(disSegmentTwo, dosMerged);
+                                if (    ((porTwo = readPostingsOffsetsRecord(disSegmentOffsetsTwo)) == null ||
+                                        ((prTwo = readPostingsRecord(disSegmentTwo)) == null )))
+                                {
+                                    throw new EOFException();
+                                }
+
+                                prMerged = prTwo;
+                                porMerged = new PostingsOffsetsRecord(porTwo.getTerm(), offsetMerged);
+                                writePostingsOffsetsRecord(dosMergedOffsets, porMerged);
+                                offsetMerged += writePostingsRecord(dosMerged, prMerged);
                             }
                         } catch (EOFException e) {
-                            return;
+                            break;
                         }
                     }
                 }
 
-                if (iorTwo == null) {
-                    if (    ((iorTwo = readIndexOffsetsRecord(disSegmentOffsetsTwo)) == null ) ||
-                            ((irTwo = readIndexRecord(disSegmentTwo)) == null))
+                if (porTwo == null) {
+                    if (    ((porTwo = readPostingsOffsetsRecord(disSegmentOffsetsTwo)) == null ) ||
+                            ((prTwo = readPostingsRecord(disSegmentTwo)) == null))
                     {
                         // Segment two EOF
 
                         // Write the objects you might have currently from segment one...
-                        if (iorOne != null) {
-                            irMerged = irOne;
-                            iorMerged = new IndexOffsetsRecord(iorOne.getTerm(), offsetMerged);
-                            writeIndexOffsetsRecord(dosMergedOffsets, iorMerged);
-                            offsetMerged += writeIndexRecord(dosMerged, irMerged);
+                        if (porOne != null) {
+                            prMerged = prOne;
+                            porMerged = new PostingsOffsetsRecord(porOne.getTerm(), offsetMerged);
+                            writePostingsOffsetsRecord(dosMergedOffsets, porMerged);
+                            offsetMerged += writePostingsRecord(dosMerged, prMerged);
                         }
 
                         // And flush the rest of segment one to the merged
                         try {
                             while (true) {
-                                copyIndexOffsetsRecord(disSegmentOffsetsOne, dosMergedOffsets);
-                                copyIndexRecord(disSegmentOne, dosMerged);
+                                if (    ((prOne = readPostingsRecord(disSegmentOne)) == null ) ||
+                                        ((porOne = readPostingsOffsetsRecord(disSegmentOffsetsOne)) == null ))
+                                {
+                                    throw new EOFException();
+                                }
+
+                                prMerged = prOne;
+                                porMerged = new PostingsOffsetsRecord(porOne.getTerm(), offsetMerged);
+                                writePostingsOffsetsRecord(dosMergedOffsets, porMerged);
+                                offsetMerged += writePostingsRecord(dosMerged, prMerged);
                             }
                         } catch (EOFException e) {
-                            return;
+                            break;
                         }
                     }
                 }
 
-                ordering = iorOne.getTerm().compareToIgnoreCase(iorTwo.getTerm());
+                ordering = porOne.getTerm().compareToIgnoreCase(porTwo.getTerm());
 
                 if (ordering < 0) {
                     // The term from segment one comes lexicographically first.
-                    irMerged = irOne;
-                    iorMerged = new IndexOffsetsRecord(iorOne.getTerm(), offsetMerged);
-                    irOne = null;
-                    iorOne = null;
+                    prMerged = prOne;
+                    porMerged = new PostingsOffsetsRecord(porOne.getTerm(), offsetMerged);
+                    prOne = null;
+                    porOne = null;
                 }
                 else if (ordering > 0) {
                     // The term from segment two comes lexicographically first.
-                    irMerged = irTwo;
-                    iorMerged = new IndexOffsetsRecord(iorTwo.getTerm(), offsetMerged);
-                    irTwo = null;
-                    iorTwo = null;
+                    prMerged = prTwo;
+                    porMerged = new PostingsOffsetsRecord(porTwo.getTerm(), offsetMerged);
+                    prTwo = null;
+                    porTwo = null;
                 }
                 else {
-                    TreeSet<Posting> postingsMerged = irOne.getPostings();
-                    postingsMerged.addAll(irTwo.getPostings());
+                    TreeSet<Posting> postingsMerged = prOne.getPostings();
+                    postingsMerged.addAll(prTwo.getPostings());
                     // The two terms are lexicographically equivalent.
-                    irMerged = new IndexRecord(postingsMerged.size(), postingsMerged);
+                    prMerged = new PostingsRecord(postingsMerged.size(), postingsMerged);
                     // It is the same as if we used iorTwo.getTerm()
-                    iorMerged = new IndexOffsetsRecord(iorOne.getTerm(), offsetMerged);
-                    irOne = irTwo = null;
-                    iorOne = iorTwo = null;
+                    porMerged = new PostingsOffsetsRecord(porOne.getTerm(), offsetMerged);
+                    prOne = prTwo = null;
+                    porOne = porTwo = null;
                 }
 
-                writeIndexOffsetsRecord(dosMergedOffsets, iorMerged);
-                offsetMerged += writeIndexRecord(dosMerged, irMerged);
+                writePostingsOffsetsRecord(dosMergedOffsets, porMerged);
+                offsetMerged += writePostingsRecord(dosMerged, prMerged);
 
             } // -- while I can read the streams
+
+            segments.offer(merged);
+
+            if (segments.size() >= 2) {
+                futures.add(executor.submit(new MergeTask(segments.poll(), segments.poll(), this)));
+            }
 
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
-        } finally {
-            segments.addLast(merged);
-
-            if (segments.size() >= 2) {
-                futures.add(executor.submit(new MergeTask(segments.removeFirst(), segments.removeFirst(), this)));
-            }
-
-
-            numMerges.incrementAndGet();
         }
-
     }
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    // -- Static methods.
+
+
     /**
-     *
+     * Reads a postings offsets formatted record from a stream.
      *
      * @param dis
+     *     The input stream to read from.
      *
      * @return
+     *     A {@code PostingsOffsetsRecord} filled with data or {@code null} if
+     *     attempting to read indicated the end of file.
      *
      * @throws IOException
+     *     When unable to read from the given stream or if this is {@null}.
      */
-    protected IndexOffsetsRecord readIndexOffsetsRecord(DataInputStream dis)
+    public static PostingsOffsetsRecord readPostingsOffsetsRecord(DataInputStream dis)
             throws IOException {
 
         if (dis == null)
             throw new IOException("Data stream null.");
 
-        IndexOffsetsRecord ior = null;
+        PostingsOffsetsRecord r = null;
         try {
-            ior = new IndexOffsetsRecord(dis.readUTF(), dis.readLong());
+            r = new PostingsOffsetsRecord(dis.readUTF(), dis.readLong());
+
         } catch (EOFException e) {
-            ior = null;
+            r = null;
         }
 
-        return ior;
+        return r;
     }
 
 
-    protected void copyIndexOffsetsRecord(DataInputStream dis, DataOutputStream dos)
+    /**
+     * Copies a postings offsets formatted record from one stream to another.
+     *
+     * @param dis
+     *     The data stream to read from.
+     * @param dos
+     *     The data stream to redirect to.
+     *
+     * @throws IOException
+     *     When unable to write from/to the given data streams or either of the
+     *     streams provided are {@code null}
+     */
+    public static void copyPostingsOffsetsRecord(DataInputStream dis, DataOutputStream dos)
             throws IOException {
 
         if (dis == null || dos == null)
@@ -396,14 +528,19 @@ public class DiskManager {
 
 
     /**
-     *
+     * Writes a postings offsets formatted record to a stream.
      *
      * @param dos
+     *     The data stream to write to.
      * @param record
+     *     The record to be written.
+     *
      * @throws IOException
+     *     When unable to write to the given data stream or the record
+     *     provided is {@null null}.
      */
-    protected void writeIndexOffsetsRecord(
-            DataOutputStream dos, IndexOffsetsRecord record) throws IOException {
+    public static void writePostingsOffsetsRecord(
+            DataOutputStream dos, PostingsOffsetsRecord record) throws IOException {
 
         if (dos == null || record == null)
             throw new IOException("Data stream or index record null.");
@@ -417,17 +554,25 @@ public class DiskManager {
 
 
     /**
+     * Reads a postings formated record from a stream.
+     *
      * @param dis
+     *     The input stream to read from.
+     *
      * @return
+     *     A {@code PostingsRecord} filled with data or {@code null} if
+     *     attempting to read indicated the end of file.
+     *
      * @throws IOException
+     *     When unable to read from the given stream or if this is {@null}.
      */
-    protected IndexRecord readIndexRecord(DataInputStream dis)
+    public static PostingsRecord readPostingsRecord(DataInputStream dis)
             throws IOException {
 
         if (dis == null)
             throw new IOException("Data stream null.");
 
-        IndexRecord ir = null;
+        PostingsRecord r = null;
         try {
             int postingsSize = dis.readInt();
             TreeSet<Posting> postings = new TreeSet<Posting>();
@@ -436,15 +581,27 @@ public class DiskManager {
                 postings.add(new Posting(dis.readLong()));
             }
 
-            ir = new IndexRecord(postings.size(), postings);
+            r = new PostingsRecord(postings.size(), postings);
         } catch (EOFException e) {
-            ir = null;
+            r = null;
         }
-        return ir;
+        return r;
     }
 
 
-    protected void copyIndexRecord(DataInputStream dis, DataOutputStream dos)
+    /**
+     * Copies a postings formatted record from one stream to another.
+     *
+     * @param dis
+     *     The data stream to read from.
+     * @param dos
+     *     The data stream to redirect to.
+     *
+     * @throws IOException
+     *     When unable to write from/to the given data streams or either of the
+     *     streams provided are {@code null}
+     */
+    public static void copyIndexRecord(DataInputStream dis, DataOutputStream dos)
             throws IOException {
 
         if (dis == null || dos == null)
@@ -459,27 +616,23 @@ public class DiskManager {
 
     }
 
-
     /**
-     * Writes an index formatted record to a data stream.
+     * Writes a postings formatted record to a stream.
      *
      * @param dos
-     *     The {@link DataOutputStream} to write the record to. For better
-     *     performance make sure its underlying {@link FileOutputStream} is
-     *     decorated buffering (i.e., wrapped with a
-     *     {@code BufferedOutputStream}.
+     *     The data stream to write to.
      * @param record
-     *     The index record to be written.
+     *     The record to be written.
      *
      * @return
      *     The number of bytes written.
      *
      * @throws IOException
-     *     When unable to write to the given data stream or the index record
+     *     When unable to write to the given data stream or the record
      *     provided is {@null null}.
      */
-    protected long writeIndexRecord(
-            DataOutputStream dos, IndexRecord record) throws IOException {
+    public static long writePostingsRecord(DataOutputStream dos,
+            PostingsRecord record) throws IOException {
 
         if (dos == null || record == null)
             throw new IOException("Data stream or index record null.");
@@ -513,27 +666,47 @@ public class DiskManager {
 
 
     /**
+     * Reads a store offsets formatted record from a stream.
+     *
      * @param dis
+     *     The input stream to read from.
+     *
      * @return
+     *     A {@code StoreOffsetsRecord} filled with data or {@code null} if
+     *     attempting to read indicated the end of file.
+     *
      * @throws IOException
+     *     When unable to read from the given stream or if this is {@null}.
      */
-    protected StoreOffsetsRecord readStoreOffsetsRecord(DataInputStream dis)
+    public static StoreOffsetsRecord readStoreOffsetsRecord(DataInputStream dis)
             throws IOException {
 
         if (dis == null)
             throw new IOException("Data stream null.");
 
-        StoreOffsetsRecord sor = null;
+        StoreOffsetsRecord r = null;
         try {
-            sor = new StoreOffsetsRecord(dis.readLong(), dis.readLong());
+            r = new StoreOffsetsRecord(dis.readLong(), dis.readLong());
         } catch (EOFException e) {
-            sor = null;
+            r = null;
         }
 
-        return sor;
+        return r;
     }
 
 
+    /**
+     * Copies an store offsets formatted record from one stream to another.
+     *
+     * @param dis
+     *     The data stream to read from.
+     * @param dos
+     *     The data stream to redirect to.
+     *
+     * @throws IOException
+     *     When unable to write from/to the given data streams or either of the
+     *     streams provided are {@code null}
+     */
     protected void copyStoreOffsetsRecord(DataInputStream dis, DataOutputStream dos)
             throws IOException {
 
@@ -546,9 +719,16 @@ public class DiskManager {
 
 
     /**
+     * Writes an store offsets formatted record to a stream.
+     *
      * @param dos
+     *     The data stream to write to.
      * @param record
+     *     The record to be written.
+     *
      * @throws IOException
+     *     When unable to write to the given data stream or the record
+     *     provided is {@null null}.
      */
     protected void writeStoreOffsetsRecord(
             DataOutputStream dos, StoreOffsetsRecord record) throws IOException {
@@ -563,25 +743,49 @@ public class DiskManager {
         dos.writeLong(record.getOffset());
     }
 
-
-    protected StoreRecord readStoreRecord(DataInputStream dis)
+    /**
+     * Reads an store formated record from a stream.
+     *
+     * @param dis
+     *     The input stream to read from.
+     *
+     * @return
+     *     A {@code StoreRecord} filled with data or {@code null} if
+     *     attempting to read indicated the end of file.
+     *
+     * @throws IOException
+     *     When unable to read from the given stream or if this is {@null}.
+     */
+    public static StoreRecord readStoreRecord(DataInputStream dis)
             throws IOException {
 
         if (dis == null)
             throw new IOException("Data stream null.");
 
-        StoreRecord sr = null;
+        StoreRecord r = null;
         try {
-            sr = new StoreRecord(dis.readUTF());
+            r = new StoreRecord(dis.readUTF());
         } catch (EOFException e) {
-            sr = null;
+            r = null;
         }
 
-        return sr;
+        return r;
     }
 
 
-    protected void copyStoreRecord(DataInputStream dis, DataOutputStream dos)
+    /**
+     * Copies a store formatted record from one stream to another.
+     *
+     * @param dis
+     *     The data stream to read from.
+     * @param dos
+     *     The data stream to redirect to.
+     *
+     * @throws IOException
+     *     When unable to write from/to the given data streams or either of the
+     *     streams provided are {@code null}
+     */
+    public static  void copyStoreRecord(DataInputStream dis, DataOutputStream dos)
             throws IOException {
 
         if (dis == null || dos == null)
@@ -590,26 +794,22 @@ public class DiskManager {
         dos.writeUTF(dis.readUTF());
     }
 
-
     /**
-     * Writes an store formatted record to a data stream.
+     * Writes a store formatted record to a stream.
      *
      * @param dos
-     *     The {@link DataOutputStream} to write the record to. For better
-     *     performance make sure its underlying {@link FileOutputStream} is
-     *     decorated with buffering (i.e., wrapped with a
-     *     {@code BufferedOutputStream}.
+     *     The data stream to write to.
      * @param record
-     *     The store record to be written.
+     *     The record to be written.
      *
      * @return
      *     The number of bytes written.
      *
      * @throws IOException
-     *     When unable to write to the given data stream or the store record
-     *     provided is {@code null}.
+     *     When unable to write to the given data stream or the record
+     *     provided is {@null null}.
      */
-    protected long writeStoreRecord(
+    public static  long writeStoreRecord(
             DataOutputStream dos, StoreRecord record) throws IOException {
 
         if (dos == null || record == null)
@@ -626,39 +826,6 @@ public class DiskManager {
         dos.writeUTF(record.getStored());
 
         return dos.size() - bytesWritten;
-    }
-
-
-    public void halt() {
-        while (!futures.isEmpty() ) {
-            System.out.println(futures.size());
-            try {
-                futures.remove().get();
-            }
-            catch (InterruptedException | ExecutionException e) {
-                e.printStackTrace();
-            }
-        }
-
-        executor.shutdown(); // Disable new tasks from being submitted
-        try {
-            // Wait a while for existing tasks to terminate
-            if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
-                executor.shutdownNow(); // Cancel currently executing tasks
-                // Wait a while for tasks to respond to being cancelled
-                if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
-                    System.err.println("Pool did not terminate.");
-                }
-            }
-        }
-        catch (InterruptedException ie) {
-            ie.printStackTrace();
-
-            // (Re-)Cancel if current thread also interrupted
-            executor.shutdownNow();
-            // Preserve interrupt status
-            Thread.currentThread().interrupt();
-        }
     }
 
 }

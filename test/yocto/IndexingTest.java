@@ -14,7 +14,7 @@ import yocto.indexing.parsing.wikipedia.SAXWikipediaXMLDumpParser;
  *
  * @author billy
  */
-public class TestDriver {
+public class IndexingTest {
 
     /**
      * The main function that drives the execution.

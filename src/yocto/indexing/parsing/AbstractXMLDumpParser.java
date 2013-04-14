@@ -21,7 +21,7 @@ import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
  */
 public abstract class AbstractXMLDumpParser implements XMLDumpParser {
 
-    /** The pathname of the XML dump file. */
+    /* The pathname of the XML dump file. */
     private final String pathname;
 
 

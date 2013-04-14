@@ -1,18 +1,13 @@
 package yocto.indexing;
 
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import yocto.indexing.parsing.wikipedia.WikiPageAnalyzer;
@@ -25,7 +20,7 @@ import yocto.storage.DiskManager;
  */
 public class Indexer {
 
-    /**
+    /*
      * The in-memory index.
      *
      * It is the data structure that will hold an in-memory instance of the
@@ -42,12 +37,12 @@ public class Indexer {
      * field).
      *
      * TODO If steps that access it are to be threaded, I need to make sure the
-     *      that it is thread-safe ({@code TreeMap<K, V> for example is not
-     *      synchronized by default). Better some concurrent collection.
+     * that it is thread-safe ({@code TreeMap<K, V> for example is not
+     * synchronized by default). Better some concurrent collection.
      */
     private final TreeMap<String, TreeSet<Posting>> index;
 
-    /**
+    /*
      * The in-memory stored fields.
      *
      * A data structure that maps document ids with a stored string field (in the
@@ -57,23 +52,21 @@ public class Indexer {
      */
     private final LinkedHashMap<Long, String> store;
 
-    /**
+    /*
      * Handles the persistence functions
      */
     private final DiskManager dm;
 
-    /** The queue of the documents to be indexed. */
+    /* The queue of the documents to be indexed. */
     private final Queue<Document> documents;
 
-    // TODO
-    // Recheck this batch size approach. Might be better the batch size
-    // to be dynamically chosen with respect to the available memory.
-
-    /** Defines the number of documents each inversion will handle */
+    /*
+     * Defines the number of documents each inversion will handle.
+     *
+     * TODO Revisit this batch size approach. Might be better the batch size
+     * to be dynamically chosen with respect to the available memory.
+     */
     private final int batchSize;
-
-    /** The number of documents indexed **/
-    private long docNum;
 
 
     /**
@@ -90,7 +83,6 @@ public class Indexer {
         this.index = new TreeMap<String, TreeSet<Posting>>();
         this.store = new LinkedHashMap<Long, String>();
         this.dm = dm;
-        this.docNum = 0;
         this.documents = new LinkedList<Document>();
         this.batchSize = batchSize;
     }
@@ -133,7 +125,7 @@ public class Indexer {
     public void close() {
         commit();
 
-        dm.halt();
+        dm.close();
     }
 
 
@@ -145,7 +137,11 @@ public class Indexer {
     }
 
 
-    private void flush(TreeMap<String, TreeSet<Posting>> index, LinkedHashMap<Long, String> store) {
+    /*
+     * Attempts to flush the in-memory structures to persistence storage.
+     */
+    private void flush(TreeMap<String, TreeSet<Posting>> index,
+            LinkedHashMap<Long, String> store) {
         dm.writeIndexSegment(index);
         index.clear();
         dm.appendStore(store);
@@ -153,14 +149,14 @@ public class Indexer {
     }
 
 
-    /**
+    /*
      * The indexing process.
      *
      * Implements a variation of the Single-Pass In-Mamory Indexing (SPIMI)
      * algorithm.
      *
-     * TODO I have to leverage the composite design pattern for a plugable
-     *      analyzer object.
+     * TODO Could be a good idea to leverage the composite design pattern for
+     * a plugable analyzer object.
      */
     protected void invertSPIMI() {
         System.out.print("Feeding " + documents.size() +" documents... ");
@@ -181,18 +177,6 @@ public class Indexer {
             store.put(doc.getId(), doc.getLabel().trim());
 
             // -- Invert document.
-
-//            if (doc.getContent().contains("Anarchism")) {
-//                System.out.println("==================");
-//                System.out.println("##################");
-//                System.out.println(doc.getContent());
-//                System.out.println("==================");
-//                System.out.println("##################");
-//                System.out.println(WikiPageAnalyzer.foo(doc.getContent()));
-//                System.out.println("==================");
-//                System.out.println("##################");
-//            }
-
 
             docTerms = WikiPageAnalyzer.tokenizePageRevisionText(
                     WikiPageAnalyzer.normalizePlainPageRevisionText(doc.getContent()),
@@ -227,29 +211,22 @@ public class Indexer {
 
             } // -- foreach term in the document
 
-            if (doc.getAuthor().contains("Tbhotch"))
-                System.out.println("Halt");
+            // -- Naive approach for inverting author names due to lack of time.
             String author = "author:" + doc.getAuthor().trim().toLowerCase();
             TreeSet<Posting> authorPostings = index.get(author);
             if (authorPostings == null) {
-                // ...no author appears in the inverted index
-
-                // prepare a new sorted list of postings
                 TreeSet<Posting> addedAuthorPostings = new TreeSet<Posting>();
-                // ... prepare a posting for the current document and add
-                // it to the newly created sorted list of postings
                 addedAuthorPostings.add(new Posting(doc.getId()));
-                // and add a term/sorted-list-o-postings pair to the
+                // add the new author/sorted-list-o-postings pair to the
                 // inverted index.
                 index.put(author, addedAuthorPostings);
             }
             else {
-                // the authro already appears in the inverted index so simply
+                // the author already appears in the inverted index so simply
                 // add a new posting in the term's sorted list of postings.
                 authorPostings.add(new Posting(doc.getId()));
             }
 
-            docNum++;
             numDocsIndexed++;
 
         } // -- while there are documents

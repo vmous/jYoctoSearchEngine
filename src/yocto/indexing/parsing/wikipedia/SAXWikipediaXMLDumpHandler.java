@@ -11,7 +11,7 @@ import yocto.indexing.Indexer;
 import yocto.storage.DiskManager;
 
 /**
- * The hanlder that handles the parsing of a Wikipedia XML dump file.
+ * The hanlder that operates on the Wikipedia XML dump file.
  *
  * @see {@link SAXWikipediaXMLDumpParser}
  *
@@ -19,24 +19,31 @@ import yocto.storage.DiskManager;
  */
 public class SAXWikipediaXMLDumpHandler extends DefaultHandler {
 
+    /* The directory to store the index. */
+    private static final String INDEX_DIR = "./index";
+
+    /* The document indexing batch size. */
+    private static final int INDEXING_BATCH_SIZE = 1000;
+
+    /* The indexer used during parsing. */
     private Indexer indexer;
 
-    /** The currently manipulated Wikipedia article page. */
+    /* The currently manipulated Wikipedia article page. */
     private Document page;
 
-    /** The currently manipulated element tag. */
+    /* The currently manipulated element tag. */
     private String tag;
 
-    /** A builder for a page title. */
+    /* A builder for a page title. */
     private StringBuilder pageTitle;
 
-    /** A builder for a page id. */
+    /* A builder for a page id. */
     private StringBuilder pageId;
 
-    /** A builder for a page revision contributor username. */
+    /* A builder for a page revision contributor username. */
     private StringBuilder pageRevisionContributorUsername;
 
-    /** A builder for a page revision text. */
+    /* A builder for a page revision text. */
     private StringBuilder pageRevisionText;
 
 
@@ -74,7 +81,7 @@ public class SAXWikipediaXMLDumpHandler extends DefaultHandler {
     public void startDocument() throws SAXException {
         super.startDocument();
 
-        indexer = new Indexer(new DiskManager("./index"), 20000);
+        indexer = new Indexer(new DiskManager(INDEX_DIR), INDEXING_BATCH_SIZE);
 
         // Created once, used many times...
         // Do not forget to delete( ) at the end of each page element!
