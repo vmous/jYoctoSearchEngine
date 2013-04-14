@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.SortedMap;
 import java.util.TreeMap;
 
 /**
@@ -16,13 +17,7 @@ import java.util.TreeMap;
  */
 public class QueryExecutor {
 
-    /*
-     * In-memory data structure of fast and shorted index file lookup.
-     *
-     * TODO Tree data structure may enable partial matching???
-     * else a hash map is the fastest lookup
-     * (luck favours the brave:)
-     */
+    /* In-memory data structure of fast and shorted index file lookup. */
     private final TreeMap<String, Long> postingsLookup;
 
     /* In-memeory data structure of fast store file lookup. */
@@ -108,7 +103,16 @@ public class QueryExecutor {
     private List<Hit> executePrefixQuery(PrefixQuery query) {
         List<Hit> hits = new LinkedList<Hit>();
 
-        hits.add(new Hit("Cannot handle prefix queries yet."));
+        String prefix = query.getQueryTerm().getTerm();
+        SortedMap<String, Long> over = postingsLookup.tailMap(prefix, true);
+        String term = "";
+        for (Map.Entry<String, Long> entry : over.entrySet()) {
+            term = entry.getKey();
+            if (!term.startsWith(prefix))
+                break;
+
+            hits.addAll(gatherHitsForTerm(entry.getValue()));
+        }
 
         return hits;
     }
@@ -124,13 +128,26 @@ public class QueryExecutor {
      *     A list of hits satisfying the given normal query.
      */
     private List<Hit> executeNormalQuery(NormalQuery query) {
+
+        return gatherHitsForTerm(postingsLookup.get(query.getQueryTerm().getTerm()));
+    }
+
+
+    /*
+     * Helper method for gathering hits for a term.
+     *
+     * @param term
+     *     The term.
+     *
+     * @return
+     *     A list of hits satisfying the given term.
+     */
+    private List<Hit> gatherHitsForTerm(Long offset) {
         List<Hit> hits = new LinkedList<Hit>();
 
-        Long postingsOffset = postingsLookup.get(query.getQueryTerm().getTerm());
-
-        if (postingsOffset != null) {
+        if (offset != null) {
             try {
-                postings.seek(postingsOffset.longValue());
+                postings.seek(offset.longValue());
 
                 // Retrieve the number of postings...
                 int postingsListSize = postings.readInt();

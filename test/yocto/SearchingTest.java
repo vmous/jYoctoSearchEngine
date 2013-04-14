@@ -79,9 +79,15 @@ public class SearchingTest {
                                 + " documents in " + TimeUnit.MILLISECONDS.convert(elapsedTime,
                                         TimeUnit.NANOSECONDS) + "ms)");
 
-                        Iterator<Hit> iter = hits.iterator();
-                        while(iter.hasNext()) {
-                            System.out.println("  " + iter.next().getResource());
+                        if (hits.size() > 0) {
+                            Iterator<Hit> iter = hits.iterator();
+                            while(iter.hasNext()) {
+                                System.out.println("  " + iter.next().getResource());
+                            }
+                        }
+                        else {
+                            if (!query.startsWith("author:"))
+                                System.out.println("You searched for knowledge not discovered yet... Start writing that paper then :-)");
                         }
                         System.out.println();
                     }
