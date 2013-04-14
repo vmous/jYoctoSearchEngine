@@ -6,6 +6,7 @@ import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
 
+import yocto.indexing.Document;
 import yocto.indexing.Indexer;
 import yocto.storage.DiskManager;
 
@@ -21,7 +22,7 @@ public class SAXWikipediaXMLDumpHandler extends DefaultHandler {
     private Indexer indexer;
 
     /** The currently manipulated Wikipedia article page. */
-    private WikiPage page;
+    private Document page;
 
     /** The currently manipulated element tag. */
     private String tag;
@@ -117,11 +118,11 @@ public class SAXWikipediaXMLDumpHandler extends DefaultHandler {
 
         if (qName.equalsIgnoreCase(TAG_PAGE)) {
             // Flush the parsed content to the wiki page object...
-            page = new WikiPage(
-                    pageTitle.toString(),
+            page = new Document(
                     Long.parseLong(pageId.toString()),
-                    pageRevisionContributorUsername.toString(),
-                    pageRevisionText.toString());
+                    pageTitle.toString(),
+                    pageRevisionText.toString(),
+                    pageRevisionContributorUsername.toString());
 
             indexer.addDocument(page);
 //            System.out.println("JVM memory (free / total): " + Runtime.getRuntime().freeMemory() + " / "

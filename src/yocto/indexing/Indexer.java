@@ -182,15 +182,29 @@ public class Indexer {
 
             // -- Invert document.
 
+//            if (doc.getContent().contains("Anarchism")) {
+//                System.out.println("==================");
+//                System.out.println("##################");
+//                System.out.println(doc.getContent());
+//                System.out.println("==================");
+//                System.out.println("##################");
+//                System.out.println(WikiPageAnalyzer.foo(doc.getContent()));
+//                System.out.println("==================");
+//                System.out.println("##################");
+//            }
+
+
             docTerms = WikiPageAnalyzer.tokenizePageRevisionText(
                     WikiPageAnalyzer.normalizePlainPageRevisionText(doc.getContent()),
                     WikiPageAnalyzer.getInstanceStopwords());
+
 
             TreeSet<Posting> termPostings;
 
             // Iterate through all terms of the current document...
             for (String term : docTerms) {
                 //... try to get the postings for the term in the inverted index...
+
                 termPostings = index.get(term);
                 if (termPostings == null) {
                     // ...no term appears in the inverted index
@@ -212,6 +226,29 @@ public class Indexer {
                 numTokensProcessed++;
 
             } // -- foreach term in the document
+
+            if (doc.getAuthor().contains("Tbhotch"))
+                System.out.println("Halt");
+            String author = "author:" + doc.getAuthor().trim().toLowerCase();
+            TreeSet<Posting> authorPostings = index.get(author);
+            if (authorPostings == null) {
+                // ...no author appears in the inverted index
+
+                // prepare a new sorted list of postings
+                TreeSet<Posting> addedAuthorPostings = new TreeSet<Posting>();
+                // ... prepare a posting for the current document and add
+                // it to the newly created sorted list of postings
+                addedAuthorPostings.add(new Posting(doc.getId()));
+                // and add a term/sorted-list-o-postings pair to the
+                // inverted index.
+                index.put(author, addedAuthorPostings);
+            }
+            else {
+                // the authro already appears in the inverted index so simply
+                // add a new posting in the term's sorted list of postings.
+                authorPostings.add(new Posting(doc.getId()));
+            }
+
             docNum++;
             numDocsIndexed++;
 

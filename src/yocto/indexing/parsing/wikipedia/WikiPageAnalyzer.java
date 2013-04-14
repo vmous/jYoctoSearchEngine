@@ -4,6 +4,8 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.HashSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * A singleton class offering both class and instance resources for
@@ -12,6 +14,30 @@ import java.util.HashSet;
  * @author billy
  */
 public class WikiPageAnalyzer {
+    private static final Pattern WIKI_P0 = Pattern.compile("[=]+", Pattern.DOTALL);
+    private static final Pattern WIKI_P1 = Pattern.compile("[\\s]*\\*(.*?)", Pattern.DOTALL);
+//    private static final Pattern WIKI_P2 = Pattern.compile("\\[\\[[iI]mage(.*?)(\\|.*?)*\\|(.*?)\\]\\]", Pattern.DOTALL);
+//    private static final Pattern WIKI_P3 = Pattern.compile("\\[\\[[fF]ile(.*?)(\\|.*?)*\\|(.*?)\\]\\]", Pattern.DOTALL);
+    private static final Pattern WIKI_P4 = Pattern.compile("\\[\\[category:(.*?)\\]\\]", Pattern.DOTALL);
+    private static final Pattern WIKI_P5 = Pattern.compile("(?s)\\{\\{redirect\\|(.*?)\\}\\}", Pattern.DOTALL);
+    private static final Pattern WIKI_P6 = Pattern.compile("(?s)\\{\\{cite(.*?)\\}\\}", Pattern.DOTALL);
+    private static final Pattern WIKI_P7 = Pattern.compile("(?s)\\{\\|(.*?)\\}", Pattern.DOTALL);
+    private static final Pattern WIKI_P8 = Pattern.compile("\\'+", Pattern.DOTALL);
+    private static final Pattern WIKI_P9 = Pattern.compile("\\[\\[(.*?)\\]\\]", Pattern.DOTALL);
+    private static final Pattern WIKI_P9_1 = Pattern.compile("\\{\\{(.*?)\\}\\}", Pattern.DOTALL);
+    private static final Pattern WIKI_P9_2 = Pattern.compile("\\{(.*?)\\}", Pattern.DOTALL);
+    private static final Pattern WIKI_P10 = Pattern.compile("\\[(.*?)\\]", Pattern.DOTALL);
+    private static final Pattern WIKI_P11 = Pattern.compile("(?s)\\{\\{(.*?)\\}\\}", Pattern.DOTALL);
+    private static final Pattern WIKI_P12 = Pattern.compile("<math([> ].*?)(</math>|/>)", Pattern.DOTALL);
+    private static final Pattern WIKI_P13 = Pattern.compile("(?s)<ref([> ].*?)(</ref>|/>)", Pattern.DOTALL);
+    private static final Pattern WIKI_P14 = Pattern.compile("(?s)<sup([> ].*?)(</sup>|/>)", Pattern.DOTALL);
+    private static final Pattern WIKI_P15 = Pattern.compile("(?s)<blockquote>(.*?)</blockquote>", Pattern.DOTALL);
+    private static final Pattern WIKI_P16 = Pattern.compile("<!--.*?-->", Pattern.DOTALL);
+    private static final Pattern WIKI_P17 = Pattern.compile("&gt;", Pattern.DOTALL);
+    private static final Pattern WIKI_P18 = Pattern.compile("&lt;", Pattern.DOTALL);
+    private static final Pattern WIKI_P19 = Pattern.compile("&nbsp;", Pattern.DOTALL);
+    private static final Pattern WIKI_P20 = Pattern.compile("\\d+", Pattern.DOTALL);
+    private static final Pattern WIKI_P21 = Pattern.compile("_+", Pattern.DOTALL);
 
     /** The singleton instance. */
     private static WikiPageAnalyzer INSTANCE;
@@ -111,7 +137,7 @@ public class WikiPageAnalyzer {
 //        System.out.println(normalizedPageRevisionText);
 
         // Simple tokenization on non-alphanumeric characters.
-        String[] tokens = normalizedPageRevisionText.split("[^\\w']+");
+        String[] tokens = normalizedPageRevisionText.split("[\\W]+");
 
         for (String token : tokens) {
 //            System.out.println(token);
@@ -145,31 +171,34 @@ public class WikiPageAnalyzer {
      */
     public static String normalizePlainPageRevisionText(String rawPageRevisionText) {
 
-        // remove cites
-        return rawPageRevisionText.toLowerCase()
-                    // Wikipedia murkup (e.g., bold)
-                    .replaceAll("\\'+", "")
-                    .replaceAll("\\{\\{.*?\\}\\}", "")
-                    .replaceAll("\\[.*?\\]", " ")
-                    // URLs
-                    .replaceAll("\\b(https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]", "")
-                    // HTML Tags
-                    .replaceAll("&gt;", "")
-                    .replaceAll("&lt;", "")
-                    .replaceAll("&nbsp", " ")
-                    .replaceAll("(\\<(\\/?[^\\>]+)\\>)", "")
-                    .replaceAll("\\[\\[(.*?)\\]\\]", "$1")
-                    .replaceAll("<ref>.*?</ref>", " ")
-                    .replaceAll("</?.*?>", " ")
-                    .replaceAll("\\[\\[.*?:.*?\\]\\]", " ")
-                    // plain numbers
-                    .replaceAll("\\d+", "")
-                    // other characters
-                    .replaceAll("_", " ")
-//                    .replaceAll("\\s(.*?)\\|(\\w+\\s)", " $2")
-                    // Blank lines
-                    .replaceAll("^\\s*$", "")
-                    ;
+        rawPageRevisionText = rawPageRevisionText.toLowerCase();
+        rawPageRevisionText = WIKI_P0.matcher(rawPageRevisionText).replaceAll(" ");
+        rawPageRevisionText = WIKI_P1.matcher(rawPageRevisionText).replaceAll("$1");
+//        rawPageRevisionText = WIKI_P2.matcher(rawPageRevisionText).replaceAll("$3");
+//        rawPageRevisionText = WIKI_P3.matcher(rawPageRevisionText).replaceAll("$3");
+        rawPageRevisionText = WIKI_P4.matcher(rawPageRevisionText).replaceAll("$1");
+        rawPageRevisionText = WIKI_P5.matcher(rawPageRevisionText).replaceAll("$1");
+        rawPageRevisionText = WIKI_P6.matcher(rawPageRevisionText).replaceAll(" ");
+        rawPageRevisionText = WIKI_P7.matcher(rawPageRevisionText).replaceAll(" ");
+        rawPageRevisionText = WIKI_P8.matcher(rawPageRevisionText).replaceAll(" ");
+        rawPageRevisionText = WIKI_P9.matcher(rawPageRevisionText).replaceAll("$1");
+        rawPageRevisionText = WIKI_P9_1.matcher(rawPageRevisionText).replaceAll(" ");
+        rawPageRevisionText = WIKI_P9_2.matcher(rawPageRevisionText).replaceAll(" ");
+        rawPageRevisionText = WIKI_P10.matcher(rawPageRevisionText).replaceAll(" ");
+        rawPageRevisionText = WIKI_P11.matcher(rawPageRevisionText).replaceAll(" ");
+        rawPageRevisionText = WIKI_P12.matcher(rawPageRevisionText).replaceAll(" ");
+        rawPageRevisionText = WIKI_P13.matcher(rawPageRevisionText).replaceAll(" ");
+        rawPageRevisionText = WIKI_P14.matcher(rawPageRevisionText).replaceAll(" ");
+        rawPageRevisionText = WIKI_P15.matcher(rawPageRevisionText).replaceAll("$1");
+        rawPageRevisionText = WIKI_P16.matcher(rawPageRevisionText).replaceAll(" ");
+        rawPageRevisionText = WIKI_P17.matcher(rawPageRevisionText).replaceAll(">");
+        rawPageRevisionText = WIKI_P18.matcher(rawPageRevisionText).replaceAll("<");
+        rawPageRevisionText = WIKI_P19.matcher(rawPageRevisionText).replaceAll(" ");
+        rawPageRevisionText = WIKI_P20.matcher(rawPageRevisionText).replaceAll(" ");
+        rawPageRevisionText = WIKI_P21.matcher(rawPageRevisionText).replaceAll(" ");
+
+        return rawPageRevisionText;
+
     }
 
 }

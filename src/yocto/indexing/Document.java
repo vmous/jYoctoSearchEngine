@@ -7,7 +7,7 @@ import java.lang.reflect.Field;
  *
  * @author billy
  */
-public abstract class Document {
+public class Document {
 
     /** The document id. */
     private final long id;
@@ -18,16 +18,20 @@ public abstract class Document {
     /** The document's indexable content. */
     private final String content;
 
+    /** The document's author. */
+    private final String author;
+
     /**
      * Constructor.
      *
      * @param id
      *     The document id;
      */
-    public Document(long id, String label, String content) {
+    public Document(long id, String label, String content, String author) {
         this.id = id;
         this.label = label;
         this.content = content;
+        this.author = author;
     }
 
 
@@ -61,6 +65,17 @@ public abstract class Document {
      */
     public String getContent() {
         return content;
+    }
+
+
+    /**
+     * Gets the document's author.
+     *
+     * @return
+     *     The document's author.
+     */
+    public String getAuthor() {
+        return author;
     }
 
 

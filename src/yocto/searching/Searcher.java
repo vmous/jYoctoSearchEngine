@@ -75,7 +75,7 @@ public class Searcher {
     public List<String> searchQuery(String query) {
         List<String> hits = new ArrayList<String>();
 
-        Long offIndex = indexLookup.get(query);
+        Long offIndex = indexLookup.get(query.toLowerCase());
 
         if (offIndex != null) {
             try {
