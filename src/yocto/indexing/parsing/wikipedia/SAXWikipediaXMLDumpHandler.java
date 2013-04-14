@@ -23,7 +23,7 @@ public class SAXWikipediaXMLDumpHandler extends DefaultHandler {
     private static final String INDEX_DIR = "./index";
 
     /* The document indexing batch size. */
-    private static final int INDEXING_BATCH_SIZE = 1000;
+    private static final int INDEXING_BATCH_SIZE = 20000;
 
     /* The indexer used during parsing. */
     private Indexer indexer;

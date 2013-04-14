@@ -7,69 +7,63 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.TreeMap;
 
 /**
+ * The entry point class for the search engine.
+ *
  * @author billy
  */
 public class Searcher {
 
-    /* Pathname to index postings file. */
-    private final String pathnameIndex;
+    /* Path name to postings offsets file. */
+    private final String pathPostingsOffsets;
 
-    /* Pathname to index offsets file. */
-    private final String pathnameIndexOffsets;
-
-    /* Path name to store file. */
-    private final String pathnameStore;
+    /* Path name to postings file. */
+    private final String pathPostings;
 
     /* Path name to store offsets file. */
-    private final String pathnameStoreOffsets;
+    private final String pathStoreOffsets;
 
-    /*
-     * In-memory data structure of fast and shorted index file lookup.
-     *
-     * TODO Tree data structure may enable partial matching???
-     * else a hash map is the fastest lookup
-     * (luck favours the brave:)
-     */
-    private TreeMap<String, Long> indexLookup;
+    /* Path name to store file. */
+    private final String pathStore;
 
-    /* In-memeory data structure of fast store file lookup. */
-    private HashMap<Long, Long> storeLookup;
-
-    /* The index file for random access. */
-    private RandomAccessFile index;
-
-    /* The store file for random access. */
-    private RandomAccessFile store;
+    /* The query executor. */
+    private final QueryExecutor qexec;
 
 
     /**
      * Constructor.
      *
-     * @param offsetsPathName
-     *     Pathname to the offsets file.
-     * @param indexPathName
-     *     Pathname to the index file.
+     * @param pathPostingsOffsets
+     *     Path to postings offsets file.
+     * @param pathPostings
+     *     Path to postings file.
+     * @param pathStoreOffsets
+     *     Path to store offsets file.
+     * @param pathStore
+     *     Path to store file.
      *
      * @throws FileNotFoundException
      */
-    public Searcher(String pathnameIndex, String pathnameIndexOffsets,
-            String pathnameStore, String pathnameStoreOffsets)
-                    throws FileNotFoundException {
-        this.pathnameIndex = pathnameIndex;
-        this.pathnameIndexOffsets = pathnameIndexOffsets;
-        this.pathnameStore = pathnameStore;
-        this.pathnameStoreOffsets = pathnameStoreOffsets;
-        loadIndexLookup();
-        loadStoreLookup();
-        openIndex();
-        openStore();
+    public Searcher(
+            String pathPostingsOffsets,
+            String pathPostings,
+            String pathStoreOffsets,
+            String pathStore) throws FileNotFoundException {
+
+        this.pathPostingsOffsets = pathPostingsOffsets;
+        this.pathPostings = pathPostings;
+        this.pathStoreOffsets = pathStoreOffsets;
+        this.pathStore = pathStore;
+
+        this.qexec = new QueryExecutor(
+                loadPostingsLookup(),
+                loadStoreLookup(),
+                openPostings(),
+                openStore());
     }
 
 
@@ -82,149 +76,116 @@ public class Searcher {
      * @return
      *     A list of the hits that satisfy the given query.
      */
-    public List<String> searchQuery(String query) {
-        List<String> hits = new ArrayList<String>();
+    public List<Hit> searchQuery(String query) {
 
-        Long offIndex = indexLookup.get(query.toLowerCase());
+        Query q = QueryParser.parse(query);
 
-        if (offIndex != null) {
-            try {
-                index.seek(offIndex.longValue());
-
-                // Retrieve the number of postings...
-                int postingsListSize = index.readInt();
-                for (int i = 0; i < postingsListSize; i++) {
-                    long docId = index.readLong();
-                    Long offStore = storeLookup.get(docId);
-                    String label;
-                    if (offStore != null) {
-                        store.seek(offStore.longValue());
-                        label = store.readUTF();
-                    }
-                    else label = docId+"";
-
-                    hits.add(label);
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-
-        return hits;
+        return qexec.execute(q);
     }
 
 
     /**
      * Loads the look-up table for the index into the memory.
      *
-     * @throws FileNotFoundException
+     * @return
+     *     The look-up table for the postings. If an error was encountered then
+     *     an empty look-up table is returned.
      */
-    private void loadIndexLookup() throws FileNotFoundException {
-        DataInputStream dis = null;
+    private TreeMap<String, Long> loadPostingsLookup() {
+        TreeMap<String, Long> lu = new TreeMap<String, Long>();
 
-        indexLookup = new TreeMap<String, Long>();
-
-        dis = new DataInputStream(
-                new BufferedInputStream(
-                        new FileInputStream(pathnameIndexOffsets),
-                        32 * 1024));
-
-        try {
+        try (   DataInputStream dis = new DataInputStream(
+                        new BufferedInputStream(
+                                new FileInputStream(pathPostingsOffsets),
+                                2 * 1024));)
+        {
             while (true) {
-                indexLookup.put(dis.readUTF(), new Long(dis.readLong()));
+                lu.put(dis.readUTF(), new Long(dis.readLong()));
             }
         } catch (EOFException eofe) {
             // Done reading offsets file.
+        } catch (FileNotFoundException fnfe) {
+            fnfe.printStackTrace();
         } catch (IOException ioe) {
             ioe.printStackTrace();
-        } finally {
-            try {
-                if (dis != null) dis.close();
-            } catch (IOException ioe) {
-                ioe.printStackTrace();
-            }
         }
+
+        return lu;
     }
 
 
     /**
      * Loads the look-up table for the store into the memory.
      *
-     * @throws FileNotFoundException
+     * @return
+     *     The look-up table for the store. If an error was encountered then
+     *     an empty look-up table is returned.
      */
-    private void loadStoreLookup() throws FileNotFoundException {
-        DataInputStream dis = null;
+    private HashMap<Long, Long> loadStoreLookup() {
 
-        storeLookup = new HashMap<Long, Long>();
 
-        dis = new DataInputStream(
-                new BufferedInputStream(
-                        new FileInputStream(pathnameStoreOffsets),
-                        32 * 1024));
+        HashMap<Long, Long> lu = new HashMap<Long, Long>();
 
-        try {
+
+
+        try (   DataInputStream dis = new DataInputStream(
+                        new BufferedInputStream(
+                                new FileInputStream(pathStoreOffsets),
+                                2 * 1024));)
+        {
             while (true) {
-                storeLookup.put(new Long(dis.readLong()), new Long(dis.readLong()));
+                lu.put(new Long(dis.readLong()), new Long(dis.readLong()));
             }
         }
         catch (EOFException eofe) {
             // Done reading offsets file.
+        } catch (FileNotFoundException fnfe) {
+            fnfe.printStackTrace();
         } catch (IOException ioe) {
             ioe.printStackTrace();
-        } finally {
-            try {
-                if (dis != null) dis.close();
-            } catch (IOException ioe) {
-                ioe.printStackTrace();
-            }
         }
+
+        return lu;
     }
 
 
-    /**
-     * Opens the index file.
+    /*
+     * Opens the postings file.
      *
-     * @throws FileNotFoundException
+     * @return
+     *     A reference to the postings file.
      */
-    private void openIndex() throws FileNotFoundException {
-        this.index = new RandomAccessFile(pathnameIndex, "r");
+    private RandomAccessFile openPostings() {
+
+        RandomAccessFile raf = null;
+
+        try {
+            raf = new RandomAccessFile(pathPostings, "r");
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        return raf;
     }
 
 
-    /**
+    /*
      * Opens the store file.
      *
-     * @throws FileNotFoundException
+     * @return
+     *     A reference to the store file.
      */
-    private void openStore() throws FileNotFoundException {
-        this.store = new RandomAccessFile(pathnameStore, "r");
-    }
+    private RandomAccessFile openStore() {
 
+        RandomAccessFile raf = null;
 
-    /**
-     * Prints a dictionary.
-     *
-     * For debugging.
-     *
-     * @param dictionary
-     *     The dictionary to print.
-     */
-    protected static void printDictionary(TreeMap<String, Integer> dictionary) {
-        for(Map.Entry<String, Integer> entry : dictionary.entrySet()) {
-            System.out.println("term: " + entry.getKey() + " offset: " + entry.getValue());
+        try {
+            raf = new RandomAccessFile(pathStore, "r");
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
         }
-    }
 
-
-    // -- Override
-
-
-    @Override
-    protected void finalize() throws Throwable {
-        super.finalize();
-
-        index.close();
-        store.close();
+        return raf;
     }
 
 }

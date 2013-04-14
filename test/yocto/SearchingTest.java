@@ -6,37 +6,39 @@ import java.util.List;
 import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
 
+import yocto.searching.Hit;
 import yocto.searching.Searcher;
 
+/**
+ * A simple testing CLI for testing the searching infrastructure.
+ *
+ * @author billy
+ */
 public class SearchingTest {
 
-    /**
-     * The version of the crawler.
-     */
+    /* The version of the crawler. */
     private static final String VERSION =
             "0.0";
 
-    /**
-     * The author of the crawler.
-     */
+    /* The author of the crawler. */
     private static final String strAppAuthor =
             "Vassilis S. Moustakas (vsmoustakas[at]gmail[dot]com)";
 
-    /**
-     * The application name.
-     */
+    /* The application name. */
     private static final String strAppName =
             "Yocto Search Engine v." + VERSION;
 
-    /**
-     * The application header.
-     */
+    /* The application header. */
     private static final String strAppHeader = strAppName
             + "\nA tiny, yet functional, search engine."
             + "\nAuthor: " + strAppAuthor;
 
+
     /**
+     * The main function that drives the execution.
+     *
      * @param args
+     *     The command-line arguments.
      */
     public static void main(String[] args) {
         boolean exit = false;
@@ -70,16 +72,16 @@ public class SearchingTest {
                     }
                     else {
                         long startTime = System.nanoTime();
-                        List<String> results = s.searchQuery(query);
+                        List<Hit> hits = s.searchQuery(query);
                         long elapsedTime = System.nanoTime() - startTime;
                         System.out.println("Results for \"" + query + "\" "
-                                +"(" + results.size()
+                                +"(" + hits.size()
                                 + " documents in " + TimeUnit.MILLISECONDS.convert(elapsedTime,
                                         TimeUnit.NANOSECONDS) + "ms)");
 
-                        Iterator<String> iter = results.iterator();
+                        Iterator<Hit> iter = hits.iterator();
                         while(iter.hasNext()) {
-                            System.out.println("  " + iter.next());
+                            System.out.println("  " + iter.next().getResource());
                         }
                         System.out.println();
                     }
