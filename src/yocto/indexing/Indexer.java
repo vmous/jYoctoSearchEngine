@@ -9,6 +9,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import yocto.indexing.parsing.wikipedia.WikiPageAnalyzer;
 import yocto.storage.DiskManager;
@@ -68,6 +69,9 @@ public class Indexer {
      */
     private final int batchSize;
 
+    /* The number of ingested batches. */
+    private final AtomicInteger batchNum;
+
 
     /**
      * Constructor.
@@ -85,6 +89,7 @@ public class Indexer {
         this.dm = dm;
         this.documents = new LinkedList<Document>();
         this.batchSize = batchSize;
+        this.batchNum = new AtomicInteger();
     }
 
 
@@ -159,9 +164,9 @@ public class Indexer {
      * a plugable analyzer object.
      */
     protected void invertSPIMI() {
-        System.out.print("Feeding " + documents.size() +" documents... ");
 
         // Stats
+        int batchId = batchNum.incrementAndGet();
         long startTime = System.nanoTime();
         long numDocsIndexed = 0;
         long numTokensProcessed = 0;
@@ -180,7 +185,7 @@ public class Indexer {
 
             docTerms = WikiPageAnalyzer.tokenizePageRevisionText(
                     WikiPageAnalyzer.normalizePlainPageRevisionText(doc.getContent()),
-                    WikiPageAnalyzer.getInstanceStopwords());
+                    WikiPageAnalyzer.getStopwords());
 
 
             TreeSet<Posting> termPostings;
@@ -238,8 +243,9 @@ public class Indexer {
         flush(index, store);
 
         long elapsedTime = System.nanoTime() - startTime;
-        System.out.println("Done [tokens: " + numTokensProcessed
+        System.out.println("Batch ingestion complete [id: " + batchId
                 + " | docs: " + numDocsIndexed
+                + " | tokens: " + numTokensProcessed
                 + " | time(s): " + TimeUnit.SECONDS.convert(elapsedTime,
                         TimeUnit.NANOSECONDS)
                 + "].");
