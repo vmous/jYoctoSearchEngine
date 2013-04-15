@@ -18,11 +18,11 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -127,13 +127,13 @@ public class DiskManager {
 
         this.numSegments = new AtomicInteger();
 
-        // TODO double check this datastructure for multithreading.
-        this.segments = new ConcurrentLinkedQueue<Segment>();
+        // To reduce I/O favour smaller segments over bigger ones.
+        this.segments = new PriorityBlockingQueue<Segment>();
 
         // Currently one merging thread.
-        executor = Executors.newSingleThreadExecutor();
+        this.executor = Executors.newSingleThreadExecutor();
 
-        futures = new LinkedList<Future<?>>();
+        this.futures = new LinkedList<Future<?>>();
     }
 
 
@@ -289,12 +289,13 @@ public class DiskManager {
      *     The second segment to be merged.
      */
     public void mergeSegmentsOnDisk(Segment one, Segment two) {
+
+        long startTime = System.nanoTime();
+
         int i = numSegments.getAndIncrement();
         Segment merged = new Segment(
                 new File(pathnameSegmentOffsets + i),
                 new File(pathnameSegment + i));
-
-//        System.out.println("\n\nMerging: " + one.getPostings() + " + " + two.getPostings() + " -> " + merged.getPostings() + "\n\n");
 
         try (   DataInputStream disSegmentOffsetsOne = new DataInputStream(
                         new BufferedInputStream(
@@ -440,6 +441,13 @@ public class DiskManager {
             if (segments.size() >= 2) {
                 futures.add(executor.submit(new MergeTask(segments.poll(), segments.poll(), this)));
             }
+
+            long elapsedTime = System.nanoTime() - startTime;
+            System.out.println("Merge complete [seg1(MB): " + String.format("%5.2f", one.getSegmentSize()/(1024*1024))
+                    + " | seg2(MB): " + String.format("%5.2f", two.getSegmentSize()/(1024*1024))
+                    + " | time(s): " + TimeUnit.SECONDS.convert(elapsedTime,
+                            TimeUnit.NANOSECONDS)
+                    + "].");
 
         } catch (FileNotFoundException e) {
             e.printStackTrace();

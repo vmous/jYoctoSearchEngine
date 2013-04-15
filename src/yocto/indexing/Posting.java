@@ -48,7 +48,7 @@ public class Posting implements Comparable<Posting> {
     }
 
 
-    // -- Overriding
+    // -- Override
 
 
     /* (non-Javadoc)
