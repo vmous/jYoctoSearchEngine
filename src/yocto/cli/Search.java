@@ -1,4 +1,4 @@
-package yocto;
+package yocto.cli;
 
 import java.io.FileNotFoundException;
 import java.util.Iterator;
@@ -14,11 +14,11 @@ import yocto.searching.Searcher;
  *
  * @author billy
  */
-public class SearchingTest {
+public class Search {
 
     /* The version of the crawler. */
     private static final String VERSION =
-            "0.0";
+            "1.0";
 
     /* The author of the crawler. */
     private static final String strAppAuthor =
@@ -26,7 +26,7 @@ public class SearchingTest {
 
     /* The application name. */
     private static final String strAppName =
-            "Yocto Search Engine v." + VERSION;
+            "Yocto Search Engine v." + VERSION + " (Search Module)";
 
     /* The application header. */
     private static final String strAppHeader = strAppName
@@ -50,7 +50,7 @@ public class SearchingTest {
         System.out.print("Initializing... ");
         Searcher s;
         try {
-            s = new Searcher(args[0], args[1], args[2], args[3]);
+            s = new Searcher(args[0]);
             System.out.println("Done");
             System.out.println("");
 

@@ -3,6 +3,7 @@ package yocto.searching;
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.EOFException;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -10,6 +11,8 @@ import java.io.RandomAccessFile;
 import java.util.HashMap;
 import java.util.List;
 import java.util.TreeMap;
+
+import yocto.storage.DiskManager;
 
 /**
  * The entry point class for the search engine.
@@ -37,27 +40,22 @@ public class Searcher {
     /**
      * Constructor.
      *
-     * @param pathPostingsOffsets
-     *     Path to postings offsets file.
-     * @param pathPostings
-     *     Path to postings file.
-     * @param pathStoreOffsets
-     *     Path to store offsets file.
-     * @param pathStore
-     *     Path to store file.
+     * @param indexDir
+     *     The directory of the index related files.
      *
      * @throws FileNotFoundException
      */
     public Searcher(
-            String pathPostingsOffsets,
-            String pathPostings,
-            String pathStoreOffsets,
-            String pathStore) throws FileNotFoundException {
+            String indexDir) throws FileNotFoundException {
 
-        this.pathPostingsOffsets = pathPostingsOffsets;
-        this.pathPostings = pathPostings;
-        this.pathStoreOffsets = pathStoreOffsets;
-        this.pathStore = pathStore;
+        this.pathPostingsOffsets =
+                ((indexDir == null || indexDir.trim().equals("")) ? "" : indexDir + File.separator) + DiskManager.INDEX_OFFSETS_FILENAME;
+        this.pathPostings =
+                ((indexDir == null || indexDir.trim().equals("")) ? "" : indexDir + File.separator) + DiskManager.INDEX_FILENAME;
+        this.pathStoreOffsets =
+                ((indexDir == null || indexDir.trim().equals("")) ? "" : indexDir + File.separator) + DiskManager.STORE_OFFSETS_FILENAME;
+        this.pathStore =
+                ((indexDir == null || indexDir.trim().equals("")) ? "" : indexDir + File.separator) + DiskManager.STORE_FILENAME;
 
         this.qexec = new QueryExecutor(
                 loadPostingsLookup(),

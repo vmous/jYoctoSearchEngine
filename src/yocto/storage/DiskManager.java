@@ -10,6 +10,10 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
@@ -42,18 +46,18 @@ public class DiskManager {
     private static final int IN_BUFF_SIZE = 4 * 1024;
 
     /* The file naming. */
-//    private static final String INDEX_FILENAME = "indx";
-//    private static final String INDEX_OFFSETS_FILENAME = "indx.off";
-    private static final String SEGMENT_FILENAME = "_seg.";
-    private static final String SEGMENT_OFFSETS_FILENAME = "_seg.off.";
-    private static final String STORE_FILENAME = "stor";
-    private static final String STORE_OFFSETS_FILENAME = "stor.off";
+    public static final String INDEX_FILENAME = "indx";
+    public static final String INDEX_OFFSETS_FILENAME = "indx.off";
+    public static final String SEGMENT_FILENAME = "_seg.";
+    public static final String SEGMENT_OFFSETS_FILENAME = "_seg.off.";
+    public static final String STORE_FILENAME = "stor";
+    public static final String STORE_OFFSETS_FILENAME = "stor.off";
 
-//    /* The pathname to the index file. */
-//    private final String pathnameIndex;
-//
-//    /* The pathname to the index offsets file. */
-//    private final String pathnameIndexOffsets;
+    /* The pathname to the index file. */
+    private final String pathnameIndex;
+
+    /* The pathname to the index offsets file. */
+    private final String pathnameIndexOffsets;
 
     /*
      * The pathname to a segment file. The manager appends an id number for a
@@ -86,16 +90,11 @@ public class DiskManager {
      */
     private final Queue<Segment> segments;
 
-    /*
-     * The thread pool.
-     */
-    private final ExecutorService executor;
+    /* The thread manager for segment merges */
+    private final ExecutorService merger;
 
-    /*
-     * A Queue of futures for the submitted threads.
-     */
+    /* A Queue of futures for the submitted threads. */
     private final Queue<Future<?>> futures;
-
 
     /* The offset for the store file */
     private long storeOffset = 0;
@@ -112,10 +111,10 @@ public class DiskManager {
         if( !d.exists() )
             d.mkdirs();
 
-//        this.pathnameIndex =
-//                ((dir == null || dir.trim().equals("")) ? "" : dir + File.separator) + INDEX_FILENAME;
-//        this.pathnameIndexOffsets =
-//                ((dir == null || dir.trim().equals("")) ? "" : dir + File.separator) + INDEX_OFFSETS_FILENAME;
+        this.pathnameIndex =
+                ((dir == null || dir.trim().equals("")) ? "" : dir + File.separator) + INDEX_FILENAME;
+        this.pathnameIndexOffsets =
+                ((dir == null || dir.trim().equals("")) ? "" : dir + File.separator) + INDEX_OFFSETS_FILENAME;
         this.pathnameStore =
                 ((dir == null || dir.trim().equals("")) ? "" : dir + File.separator) + STORE_FILENAME;
         this.pathnameStoreOffsets =
@@ -131,7 +130,7 @@ public class DiskManager {
         this.segments = new PriorityBlockingQueue<Segment>();
 
         // Currently one merging thread.
-        this.executor = Executors.newSingleThreadExecutor();
+        this.merger = Executors.newSingleThreadExecutor();
 
         this.futures = new LinkedList<Future<?>>();
     }
@@ -158,14 +157,14 @@ public class DiskManager {
             }
         }
 
-        executor.shutdown(); // Disable new tasks from being submitted
+        merger.shutdown(); // Disable new tasks from being submitted
 
         try {
             // Wait a while for existing tasks to terminate
-            if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
-                executor.shutdownNow(); // Cancel currently executing tasks
+            if (!merger.awaitTermination(60, TimeUnit.SECONDS)) {
+                merger.shutdownNow(); // Cancel currently executing tasks
                 // Wait a while for tasks to respond to being cancelled
-                if (!executor.awaitTermination(60, TimeUnit.SECONDS)) {
+                if (!merger.awaitTermination(60, TimeUnit.SECONDS)) {
                     System.err.println("Pool did not terminate.");
                 }
             }
@@ -174,9 +173,21 @@ public class DiskManager {
             ie.printStackTrace();
 
             // (Re-)Cancel if current thread also interrupted
-            executor.shutdownNow();
+            merger.shutdownNow();
             // Preserve interrupt status
             Thread.currentThread().interrupt();
+        }
+        finally {
+            try {
+                Path source = Paths.get(pathnameSegmentOffsets + (numSegments.get() - 1));
+                Path target = Paths.get(pathnameIndexOffsets);
+                Files.move(source, target, StandardCopyOption.ATOMIC_MOVE);
+                source = Paths.get(pathnameSegment + (numSegments.get() - 1));
+                target = Paths.get(pathnameIndex);
+                Files.move(source, target, StandardCopyOption.ATOMIC_MOVE);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -228,7 +239,7 @@ public class DiskManager {
             segments.offer(segment);
 
             if (segments.size() >= 2) {
-                futures.add(executor.submit(new MergeTask(segments.poll(), segments.poll(), this)));
+                futures.add(merger.submit(new MergeTask(segments.poll(), segments.poll(), this)));
             }
 
             // clear the in-memory index since persisted on disk.
@@ -439,7 +450,7 @@ public class DiskManager {
             segments.offer(merged);
 
             if (segments.size() >= 2) {
-                futures.add(executor.submit(new MergeTask(segments.poll(), segments.poll(), this)));
+                futures.add(merger.submit(new MergeTask(segments.poll(), segments.poll(), this)));
             }
 
             long elapsedTime = System.nanoTime() - startTime;
