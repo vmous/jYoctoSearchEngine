@@ -6,7 +6,7 @@ import java.io.InputStream;
 import java.util.zip.GZIPInputStream;
 import java.util.zip.ZipInputStream;
 
-import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
+//import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream;
 
 /**
  * An abstract class encapsulating the generic information and behaviour for
@@ -54,9 +54,9 @@ public abstract class AbstractXMLDumpParser implements XMLDumpParser {
         if (pathname.endsWith(".gz")) {
             is = new GZIPInputStream(is);
         }
-        else if (pathname.endsWith(".bz2")) {
-            is = new BZip2CompressorInputStream(is);
-        }
+//        else if (pathname.endsWith(".bz2")) {
+//            is = new BZip2CompressorInputStream(is);
+//        }
         else if (pathname.endsWith(".zip")) {
             is = new ZipInputStream(is);
         }
