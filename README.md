@@ -18,7 +18,7 @@ Jump into and use `maven` to assembly it in an executable `.jar` file
 ...
 ```
 
-The `.jar` file is created in the `target` file.
+The `.jar` file is created in the `target` directory.
 
 ### Go!
 To run the indexer issue
