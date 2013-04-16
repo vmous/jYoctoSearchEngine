@@ -22,10 +22,10 @@ This part is one of the most critical ones, directly effecting a search infrastr
    3. Sequences of characters are splitted on non-alphanumeric characters (whitespace, punctuation) and are put into a token list.
  
 3. *Stopword removal*
-   The output of the tokenization is compared against a standard set of non-significant words, specific for the language of the document, called stop-words. These tokens are ignored and not put into the document's tokens list. There can be various levels of stopword removal, from basic to aggressive. The first retains possibly important information within the index with the expense though of extensive resource usage (e.g., disk space). The second is the exact complementary of the first. As always a balance must be found. Our implementation uses the [MySQL full-text stopword list for english][3]
+   The output of the tokenization is compared against a standard set of non-significant words, specific for the language of the document, called stop-words. These tokens are ignored and not put into the document's tokens list. There can be various levels of stopword removal, from basic to aggressive. The first retains possibly important information within the index with the expense though of extensive resource usage (e.g., disk space). The second is the exact complementary of the first. As always a balance must be found. Our implementation uses the [MySQL full-text stopword list for english][4]
  
-4. [Stemming/Lemmatization][4]
-   Both techniques are used to reduce inflectional forms and sometimes derivationally related forms of a word to a common root form. Stemming is a brutal heuristic that cuts the ends of words off. Lemmatization does NLP (vocabulary and morphological analyses of words) in an attempt to return the root dictionary form of the word. This heavily reduces the size of the index, speed up query execution and broaden the recall scope of the engine.
+4. *Stemming/Lemmatization*
+   Both techniques are used to reduce inflectional forms and sometimes derivationally related forms of a word to a common root form. Stemming is a brutal heuristic that cuts the ends of words off. Lemmatization does NLP (vocabulary and morphological analyses of words) in an attempt to return the root dictionary form of the word. This can heavily reduce the size of the index, speed up query execution and broaden the recall scope of the engine. Implementation of such processing was out of the scope at this point and dependencies should be eliminated thus no such functionality is currently offered.
 
 ### Inversion
 
@@ -139,16 +139,13 @@ As discussed before, modern search engines are able to rank the results of a sea
 ## Dependencies
 
 This first version is intentionally stripped off all of possible dependencies on third-party software. Only dependency is JRE 1.7. Developed with OpenJDK 1.7.
-============
-commons-compress from org.apache.commons was included since Wikipedia distributes their dumps compressed as BZip2 compressed files And this will save more than 20 minutes (on a Core i7) of decomprressing the XML file as a preprocessing step of the indexing procedure.
 
 ## References
 
 [1]: http://dumps.wikimedia.org/enwiki/latest/enwiki-latest-pages-articles.xml.bz2 (2013-Apr-04 22:47:57 9.0G application/x-bzip)
 [2]: The only dependency in the project just in case that the test environent doesn't have the bunzip2 utility :-)
-[2]: The corpus defined for this first attempt was the english Wikipedia pages so no language detection functionality was needed.
-[3]: http://dev.mysql.com/doc/refman/5.5/en/fulltext-stopwords.html
-[4]: Implementation of such processing was out of the scope of this project at this point and the requirement to keep dependencies to third-party code to a minimum prevented us from adding such functionality in.
+[3]: The corpus defined for this first attempt was the english Wikipedia pages so no language detection functionality was needed.
+[4]: http://dev.mysql.com/doc/refman/5.5/en/fulltext-stopwords.html
 [5]: http://nlp.stanford.edu/IR-book/html/htmledition/single-pass-in-memory-indexing-1.html
 [6]: http://nlp.stanford.edu/IR-book/html/htmledition/references-and-further-reading-5.html
 

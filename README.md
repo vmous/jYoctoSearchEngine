@@ -2,7 +2,7 @@
 
 A tiny, yet functional, search engine.
 
-## Quick-start guide
+## Quick-Start Guide
 
 ### On your mark
 First clone the repository in a directory of your choice:
@@ -62,6 +62,10 @@ Yocto Search # author:proso*
 ```
 
 At any point you can type `q!` to exit the search CLI. Don't forget to drop a comment or even a github star on your way out :)
+
+## Tech Report
+
+Check [here](resources/TECHREPORT.md) for some insights on the YoctoSearchEngine current implementation and future work.
 
 ## Build Status
 
