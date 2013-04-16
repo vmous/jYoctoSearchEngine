@@ -1,0 +1,104 @@
+<mediawiki xmlns="http://www.mediawiki.org/xml/export-0.8/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mediawiki.org/xml/export-0.8/ http://www.mediawiki.org/xml/export-0.8.xsd" version="0.8" xml:lang="en">
+  <siteinfo>
+    <sitename>Wikipedia</sitename>
+    <base>http://en.wikipedia.org/wiki/Main_Page</base>
+    <generator>MediaWiki 1.21wmf10</generator>
+    <case>first-letter</case>
+    <namespaces>
+      <namespace key="-2" case="first-letter">Media</namespace>
+      <namespace key="-1" case="first-letter">Special</namespace>
+      <namespace key="0" case="first-letter" />
+      <namespace key="1" case="first-letter">Talk</namespace>
+      <namespace key="2" case="first-letter">User</namespace>
+      <namespace key="3" case="first-letter">User talk</namespace>
+      <namespace key="4" case="first-letter">Wikipedia</namespace>
+      <namespace key="5" case="first-letter">Wikipedia talk</namespace>
+      <namespace key="6" case="first-letter">File</namespace>
+      <namespace key="7" case="first-letter">File talk</namespace>
+      <namespace key="8" case="first-letter">MediaWiki</namespace>
+      <namespace key="9" case="first-letter">MediaWiki talk</namespace>
+      <namespace key="10" case="first-letter">Template</namespace>
+      <namespace key="11" case="first-letter">Template talk</namespace>
+      <namespace key="12" case="first-letter">Help</namespace>
+      <namespace key="13" case="first-letter">Help talk</namespace>
+      <namespace key="14" case="first-letter">Category</namespace>
+      <namespace key="15" case="first-letter">Category talk</namespace>
+      <namespace key="100" case="first-letter">Portal</namespace>
+      <namespace key="101" case="first-letter">Portal talk</namespace>
+      <namespace key="108" case="first-letter">Book</namespace>
+      <namespace key="109" case="first-letter">Book talk</namespace>
+      <namespace key="446" case="first-letter">Education Program</namespace>
+      <namespace key="447" case="first-letter">Education Program talk</namespace>
+      <namespace key="710" case="first-letter">TimedText</namespace>
+      <namespace key="711" case="first-letter">TimedText talk</namespace>
+      <namespace key="828" case="first-letter">Module</namespace>
+      <namespace key="829" case="first-letter">Module talk</namespace>
+    </namespaces>
+  </siteinfo>
+  <page>
+    <title>AccessibleComputing</title>
+    <ns>0</ns>
+    <id>10</id>
+    <redirect title="Computer accessibility" />
+    <revision>
+      <id>381202555</id>
+      <parentid>381200179</parentid>
+      <timestamp>2010-08-26T22:38:36Z</timestamp>
+      <contributor>
+        <username>OlEnglish</username>
+        <id>7181920</id>
+      </contributor>
+      <minor />
+      <comment>[[Help:Reverting|Reverted]] edits by [[Special:Contributions/76.28.186.133|76.28.186.133]] ([[User talk:76.28.186.133|talk]]) to last version by Gurch</comment>
+      <text xml:space="preserve">#REDIRECT [[Computer accessibility]] {{R from CamelCase}}</text>
+      <sha1>lo15ponaybcg2sf49sstw9gdjmdetnk</sha1>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+    </revision>
+  </page>
+  <page>
+    <title>Anarchism</title>
+    <ns>0</ns>
+    <id>12</id>
+    <revision>
+      <id>541785980</id>
+      <parentid>541640576</parentid>
+      <timestamp>2013-03-02T21:01:50Z</timestamp>
+      <contributor>
+        <username>Altaïr</username>
+        <id>15232315</id>
+      </contributor>
+      <minor />
+      <comment>/* Origins */  Fix.</comment>
+      <text xml:space="preserve">
+
+      == Terminology ==
+pokémon Japanese write the English term &quot;animation&quot; in ''[[katakana]]'' as アニメーション (''animēshon'', pronounced {{IPA-ja|animeːɕoɴ|}}); anime is short for this. Many sources claim that anime derives from the French phrase ''dessin animé'',&lt;ref name=&quot;manga!&quot;/&gt;&lt;ref&gt;{{cite web |url=http://www.etymonline.com/index.php?term=anime |title=Etymology Dictionary Reference: Anime accessdate=2007-09-13 |work=Etymonline}}&lt;/ref&gt; however this is debated.&lt;ref&gt;{{cite web |url=http://www.animenewsnetwork.com/encyclopedia/lexicon.php?id=45 |title=Anime News Network Lexicon - Anime accessdate=2012-12-03}}&lt;/ref&gt; Japanese-speakers use both the original and abbreviated forms interchangeably, but the shorter form occurs more commonly.
+
+      </text>
+      <sha1>ls0ordqhjufi32fc3qo9oioa37seld5</sha1>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+    </revision>
+  </page>
+  <page>
+    <title>AfghanistanHistory</title>
+    <ns>0</ns>
+    <id>13</id>
+    <redirect title="History of Afghanistan" />
+    <revision>
+      <id>74466652</id>
+      <parentid>15898948</parentid>
+      <timestamp>2006-09-08T04:15:52Z</timestamp>
+      <contributor>
+        <username>Rory096</username>
+        <id>750223</id>
+      </contributor>
+      <comment>cat rd</comment>
+      <text xml:space="preserve">#REDIRECT [[History of Afghanistan]] {{R from CamelCase}}</text>
+      <sha1>d4tdz2eojqzamnuockahzcbrgd1t9oi</sha1>
+      <model>wikitext</model>
+      <format>text/x-wiki</format>
+    </revision>
+  </page>
+</mediawiki>

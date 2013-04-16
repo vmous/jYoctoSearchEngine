@@ -8,10 +8,19 @@
   
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+<!--     
     <commons-compress.version>1.5</commons-compress.version>
+-->
+    <junit.version>4.11</junit.version>
   </properties>
   
   <dependencies>
+    <!-- Some dependency for testing never hurt anyone. -->
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>${junit.version}</version>
+    </dependency>
     <!-- BZip2 compressed file support -->
 <!--    
      <dependency>
