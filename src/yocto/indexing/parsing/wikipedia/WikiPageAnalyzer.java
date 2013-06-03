@@ -11,6 +11,7 @@ import java.util.regex.Pattern;
 public class WikiPageAnalyzer {
 
     public static final Pattern TOKENIZR = Pattern.compile("[\\W]+", Pattern.UNICODE_CHARACTER_CLASS);
+//    public static final Pattern TOKENIZR = Pattern.compile("[\\P{L}]+");
 
     private static final Pattern WIKI_P0 = Pattern.compile("&lt;!--.*?--&gt;", Pattern.DOTALL);
     private static final Pattern WIKI_P1 = Pattern.compile("<!--.*?-->", Pattern.DOTALL);
@@ -656,10 +657,9 @@ public class WikiPageAnalyzer {
             String normalizedPageRevisionText,
             HashSet<String> stopwords) {
         HashSet<String> bagOfWords = new HashSet<String>();
-        String[] tokens = TOKENIZR.split(normalizedPageRevisionText);
 
-        // Simple tokenization on non-alphanumeric characters.
-//        String[] tokens = normalizedPageRevisionText.spli("[\\W]+");
+        // Simple tokenization on non-alphanumeric Unicode characters.
+        String[] tokens = TOKENIZR.split(normalizedPageRevisionText);
 
         for (String token : tokens) {
             if (!token.equals("")) {

@@ -2,6 +2,21 @@
 
 A tiny, yet functional, search engine.
 
+## Introduction
+This is an attempt to implement the basic components that comprise a small yet functional free text search scenario
+on the Wikipedia XML english page dump. From corpus manipulation, indexing and persistence to basic retrieval from
+a simple command line interface. It was intended in order to familiarize with the basic notions and data structures
+that revolve around information retrieval. Even though it does not pretend to be a fully functional implementation
+of such a system, the size of the corpus (approximatelly 45G) posed some interesting memory usage and I/O blocking
+challenges that was fun to implement and worthed the effort :) Hope this can be helpful for anyone interested in
+understanding more things about searching text corpuses.
+
+## Latest Status (16/04/2013)
+Takes Wikipedia database dump files, builds and indexes on author and main text body. With a command line interface
+you are able to issue search queries of single words or word prefixes which are ultimatelly resolved into a
+list of article titles that contain the given term. It was an implementation choice, at least for this first version,
+to have no dependencies on third party libraries. 
+
 ## Quick-Start Guide
 
 ### On your mark
@@ -43,7 +58,7 @@ Yocto Search #
 
 Issue your term queries
 ```sh
-Yocto Search # soundcloud
+Yocto Search # google
 ```
 
 You can also search authors/contributors
